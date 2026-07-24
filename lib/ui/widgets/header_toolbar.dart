@@ -38,11 +38,19 @@ class HeaderToolbar extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Logo e Título
-                  const Icon(
-                    Icons.account_tree_rounded,
-                    color: Color(0xFF2563EB),
-                    size: 28,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset(
+                      'assets/app_icon.png',
+                      height: 32,
+                      width: 32,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.account_tree_rounded,
+                        color: Color(0xFF2563EB),
+                        size: 28,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(
