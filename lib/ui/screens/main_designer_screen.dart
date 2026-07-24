@@ -8,12 +8,14 @@ import '../../data/models/relationship_model.dart';
 import '../../data/models/table_model.dart';
 import '../../state/canvas_provider.dart';
 import '../../state/canvas_state.dart';
+import '../../state/schemas_provider.dart';
 import '../painters/dragging_connection_painter.dart';
 import '../painters/grid_painter.dart';
 import '../painters/orthogonal_connection_painter.dart';
 import '../widgets/header_toolbar.dart';
 import '../widgets/property_sidebar.dart';
 import '../widgets/relationship_dialog.dart';
+import '../widgets/schemas_sidebar.dart';
 import '../widgets/table_card_widget.dart';
 
 class MainDesignerScreen extends ConsumerStatefulWidget {
@@ -311,6 +313,21 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<CanvasState>(canvasProvider, (previous, next) {
+      if (previous != next) {
+        final activeSchema = ref.read(schemasProvider).activeSchema;
+        if (activeSchema != null) {
+          ref.read(schemasProvider.notifier).updateActiveSchemaData(
+                activeSchema.copyWith(
+                  tables: next.tables,
+                  relationships: next.relationships,
+                  activeDialect: next.activeDialect,
+                ),
+              );
+        }
+      }
+    });
+
     final canvasState = ref.watch(canvasProvider);
     final canvasNotifier = ref.read(canvasProvider.notifier);
     final theme = Theme.of(context);
@@ -371,10 +388,13 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
               ),
             ),
 
-          // Área de trabalho do Canvas Interativo (Pan & Zoom) e Sidebar
+          // Área de trabalho do Canvas Interativo (Pan & Zoom) e Sidebars
           Expanded(
             child: Row(
               children: [
+                // Sidebar Lateral Esquerda (Esquemas / Projetos)
+                const SchemasSidebar(),
+
                 // Canvas Principal Interativo
                 Expanded(
                   child: ClipRect(
