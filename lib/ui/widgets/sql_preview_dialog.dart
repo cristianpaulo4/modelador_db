@@ -1,9 +1,13 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../generators/sql_dialect_generator.dart';
 import '../../state/canvas_provider.dart';
+import '../../state/schemas_provider.dart';
 
 class SqlPreviewDialog extends ConsumerWidget {
   const SqlPreviewDialog({super.key});
@@ -12,7 +16,10 @@ class SqlPreviewDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final canvasState = ref.watch(canvasProvider);
     final generator = SqlDialectGenerator.forDialect(canvasState.activeDialect);
-    final ddlScript = generator.generateDdl(canvasState.tables, canvasState.relationships);
+    final ddlScript = generator.generateDdl(
+      canvasState.tables,
+      canvasState.relationships,
+    );
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -28,7 +35,11 @@ class SqlPreviewDialog extends ConsumerWidget {
             // Title Header
             Row(
               children: [
-                const Icon(Icons.code_rounded, color: Color(0xFF10B981), size: 28),
+                const Icon(
+                  Icons.code_rounded,
+                  color: Color(0xFF10B981),
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +56,9 @@ class SqlPreviewDialog extends ConsumerWidget {
                       'Dialeto: ${canvasState.activeDialect.displayName}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ],
@@ -64,7 +77,9 @@ class SqlPreviewDialog extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: theme.dividerColor),
                 ),
@@ -97,7 +112,9 @@ class SqlPreviewDialog extends ConsumerWidget {
                     Clipboard.setData(ClipboardData(text: ddlScript));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Script DDL copiado para a área de transferência!'),
+                        content: Text(
+                          'Script DDL copiado para a área de transferência!',
+                        ),
                         duration: Duration(seconds: 2),
                         backgroundColor: Color(0xFF10B981),
                       ),
@@ -108,6 +125,54 @@ class SqlPreviewDialog extends ConsumerWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
+                    elevation: 0,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final activeSchema = ref.read(schemasProvider).activeSchema;
+                    final rawName = activeSchema?.name ?? 'esquema';
+                    final sanitized = rawName
+                        .toLowerCase()
+                        .replaceAll(RegExp(r'\s+'), '_')
+                        .replaceAll(RegExp(r'[^a-z0-9_]'), '');
+                    final defaultFileName = sanitized.isEmpty
+                        ? 'esquema.sql'
+                        : '$sanitized.sql';
+
+                    final String? outputFile = await FilePicker.platform
+                        .saveFile(
+                          dialogTitle: 'Exportar Esquema SQL',
+                          fileName: defaultFileName,
+                          type: FileType.custom,
+                          allowedExtensions: ['sql'],
+                        );
+
+                    if (outputFile != null) {
+                      final file = File(outputFile);
+                      await file.writeAsString(ddlScript);
+
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Esquema exportado com sucesso para $defaultFileName!',
+                            ),
+                            backgroundColor: Colors.amber.shade700,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text('Exportar .SQL'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                   ),
                 ),
               ],
