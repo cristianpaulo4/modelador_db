@@ -9,6 +9,55 @@ class SqliteGenerator implements SqlDialectGenerator {
   @override
   SqlDialect get dialect => SqlDialect.sqlite;
 
+  /// Ordena tabelas por dependência (topological sort)
+  List<TableModel> _sortTablesByDependency(
+    List<TableModel> tables,
+    List<RelationshipModel> relationships,
+  ) {
+    final tableMap = {for (final t in tables) t.id: t};
+    final dependencies = <String, Set<String>>{};
+    for (final table in tables) {
+      dependencies[table.id] = {};
+    }
+    for (final rel in relationships) {
+      final fkTableId = rel.targetTableId;
+      final refTableId = rel.sourceTableId;
+      if (dependencies.containsKey(fkTableId)) {
+        dependencies[fkTableId]!.add(refTableId);
+      }
+    }
+
+    final inDegree = <String, int>{};
+    for (final tableId in dependencies.keys) {
+      inDegree[tableId] = dependencies[tableId]!.length;
+    }
+
+    final queue = <String>[];
+    for (final entry in inDegree.entries) {
+      if (entry.value == 0) queue.add(entry.key);
+    }
+
+    final sorted = <TableModel>[];
+    while (queue.isNotEmpty) {
+      final currentId = queue.removeAt(0);
+      final table = tableMap[currentId];
+      if (table != null) sorted.add(table);
+
+      for (final entry in dependencies.entries) {
+        if (entry.value.contains(currentId)) {
+          inDegree[entry.key] = inDegree[entry.key]! - 1;
+          if (inDegree[entry.key] == 0) queue.add(entry.key);
+        }
+      }
+    }
+
+    for (final table in tables) {
+      if (!sorted.any((t) => t.id == table.id)) sorted.add(table);
+    }
+
+    return sorted;
+  }
+
   @override
   String generateDdl(List<TableModel> tables, List<RelationshipModel> relationships) {
     final buffer = StringBuffer();
@@ -17,34 +66,39 @@ class SqliteGenerator implements SqlDialectGenerator {
     buffer.writeln('PRAGMA foreign_keys = ON;');
     buffer.writeln();
 
-    // Primeiro, garantir UNIQUE nas colunas de destino que precisam
+    // Primeiro, garantir UNIQUE nas colunas referenciadas que precisam
+    // Na UI: arrastar de A para B significa "B referencia A"
+    // Então: refTable = source (tem a PK), fkTable = target (tem a FK)
     final uniqueConstraints = <String>[];
     for (final rel in relationships) {
-      final targetTable = tables.firstWhere(
-        (t) => t.id == rel.targetTableId,
+      final refTable = tables.firstWhere(
+        (t) => t.id == rel.sourceTableId,
         orElse: () => TableModel(id: '', name: 'unknown', position: Offset.zero, columns: []),
       );
-      final targetCol = targetTable.columns.firstWhere(
-        (c) => c.id == rel.targetColumnId,
+      final refCol = refTable.columns.firstWhere(
+        (c) => c.id == rel.sourceColumnId,
         orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INTEGER'),
       );
 
-      if (!targetCol.isPrimaryKey && !targetCol.isUnique) {
+      if (!refCol.isPrimaryKey && !refCol.isUnique) {
         uniqueConstraints.add(
-          'ALTER TABLE "${targetTable.name}" ADD CONSTRAINT "uq_${targetTable.name}_${targetCol.name}" UNIQUE ("${targetCol.name}");',
+          'ALTER TABLE "${refTable.name}" ADD CONSTRAINT "uq_${refTable.name}_${refCol.name}" UNIQUE ("${refCol.name}");',
         );
       }
     }
 
     if (uniqueConstraints.isNotEmpty) {
-      buffer.writeln('-- Garantir UNIQUE nas colunas de destino para FKs');
+      buffer.writeln('-- Garantir UNIQUE nas colunas referenciadas para FKs');
       for (final constraint in uniqueConstraints) {
         buffer.writeln(constraint);
       }
       buffer.writeln();
     }
 
-    for (final table in tables) {
+    // Ordenar tabelas por dependência
+    final sortedTables = _sortTablesByDependency(tables, relationships);
+
+    for (final table in sortedTables) {
       buffer.writeln('CREATE TABLE IF NOT EXISTS "${table.name}" (');
       final colDefs = <String>[];
 
@@ -69,23 +123,24 @@ class SqliteGenerator implements SqlDialectGenerator {
       }
 
       // Foreign Keys inline no SQLite
-      final tableRels = relationships.where((r) => r.sourceTableId == table.id);
+      // fkTable = target (tem a FK), refTable = source (tem a PK)
+      final tableRels = relationships.where((r) => r.targetTableId == table.id);
       for (final rel in tableRels) {
-        final targetTable = tables.firstWhere(
-          (t) => t.id == rel.targetTableId,
+        final refTable = tables.firstWhere(
+          (t) => t.id == rel.sourceTableId,
           orElse: () => TableModel(id: '', name: 'unknown', position: Offset.zero, columns: []),
         );
-        final sourceCol = table.columns.firstWhere(
-          (c) => c.id == rel.sourceColumnId,
+        final fkCol = table.columns.firstWhere(
+          (c) => c.id == rel.targetColumnId,
           orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INTEGER'),
         );
-        final targetCol = targetTable.columns.firstWhere(
-          (c) => c.id == rel.targetColumnId,
+        final refCol = refTable.columns.firstWhere(
+          (c) => c.id == rel.sourceColumnId,
           orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INTEGER'),
         );
 
         colDefs.add(
-          '  FOREIGN KEY ("${sourceCol.name}") REFERENCES "${targetTable.name}" ("${targetCol.name}") ON DELETE ${rel.onDelete.sqlKeyword} ON UPDATE ${rel.onUpdate.sqlKeyword}',
+          '  FOREIGN KEY ("${fkCol.name}") REFERENCES "${refTable.name}" ("${refCol.name}") ON DELETE ${rel.onDelete.sqlKeyword} ON UPDATE ${rel.onUpdate.sqlKeyword}',
         );
       }
 

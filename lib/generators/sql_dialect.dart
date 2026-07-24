@@ -10,6 +10,22 @@ enum SqlDialect {
 
   const SqlDialect(this.displayName, this.code);
 
+  /// Tipo de dado UUID padrão para cada dialeto
+  String get uuidType {
+    switch (this) {
+      case SqlDialect.postgres:
+        return 'UUID';
+      case SqlDialect.mysql:
+        return 'VARCHAR(36)';
+      case SqlDialect.sqlite:
+        return 'TEXT';
+      case SqlDialect.sqlserver:
+        return 'UNIQUEIDENTIFIER';
+      case SqlDialect.oracle:
+        return 'RAW(16)';
+    }
+  }
+
   List<String> get availableDataTypes {
     switch (this) {
       case SqlDialect.postgres:

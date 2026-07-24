@@ -84,6 +84,24 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
       final updatedTargetCols = [...targetTable.columns, newCol];
       canvasNotifier.updateTable(targetTable.copyWith(columns: updatedTargetCols));
       finalTargetColumnId = newColId;
+    } else {
+      // Garantir que a coluna FK existente tenha o mesmo tipo da coluna PK referenciada
+      final existingCol = targetTable.columns.firstWhere(
+        (c) => c.id == _selectedTargetColumnId,
+        orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+      );
+      if (existingCol.id.isNotEmpty && existingCol.dataType != sourceCol.dataType) {
+        // Atualizar o tipo da coluna para corresponder à coluna referenciada
+        final updatedCol = existingCol.copyWith(
+          dataType: sourceCol.dataType,
+          lengthOrPrecision: sourceCol.lengthOrPrecision,
+          isForeignKey: true,
+        );
+        final updatedCols = targetTable.columns.map((c) {
+          return c.id == existingCol.id ? updatedCol : c;
+        }).toList();
+        canvasNotifier.updateTable(targetTable.copyWith(columns: updatedCols));
+      }
     }
 
     // Se está editando um relacionamento existente

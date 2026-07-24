@@ -370,10 +370,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         ColumnModel(
           id: colId,
           name: 'id',
-          dataType: state.activeDialect.availableDataTypes.first,
+          dataType: state.activeDialect.uuidType,
           isPrimaryKey: true,
           isNotNull: true,
-          isAutoIncrement: true,
         ),
       ],
     );

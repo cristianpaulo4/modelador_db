@@ -9,6 +9,55 @@ class SqlserverGenerator implements SqlDialectGenerator {
   @override
   SqlDialect get dialect => SqlDialect.sqlserver;
 
+  /// Ordena tabelas por dependência (topological sort)
+  List<TableModel> _sortTablesByDependency(
+    List<TableModel> tables,
+    List<RelationshipModel> relationships,
+  ) {
+    final tableMap = {for (final t in tables) t.id: t};
+    final dependencies = <String, Set<String>>{};
+    for (final table in tables) {
+      dependencies[table.id] = {};
+    }
+    for (final rel in relationships) {
+      final fkTableId = rel.targetTableId;
+      final refTableId = rel.sourceTableId;
+      if (dependencies.containsKey(fkTableId)) {
+        dependencies[fkTableId]!.add(refTableId);
+      }
+    }
+
+    final inDegree = <String, int>{};
+    for (final tableId in dependencies.keys) {
+      inDegree[tableId] = dependencies[tableId]!.length;
+    }
+
+    final queue = <String>[];
+    for (final entry in inDegree.entries) {
+      if (entry.value == 0) queue.add(entry.key);
+    }
+
+    final sorted = <TableModel>[];
+    while (queue.isNotEmpty) {
+      final currentId = queue.removeAt(0);
+      final table = tableMap[currentId];
+      if (table != null) sorted.add(table);
+
+      for (final entry in dependencies.entries) {
+        if (entry.value.contains(currentId)) {
+          inDegree[entry.key] = inDegree[entry.key]! - 1;
+          if (inDegree[entry.key] == 0) queue.add(entry.key);
+        }
+      }
+    }
+
+    for (final table in tables) {
+      if (!sorted.any((t) => t.id == table.id)) sorted.add(table);
+    }
+
+    return sorted;
+  }
+
   @override
   String generateDdl(List<TableModel> tables, List<RelationshipModel> relationships) {
     final buffer = StringBuffer();
@@ -16,7 +65,9 @@ class SqlserverGenerator implements SqlDialectGenerator {
     buffer.writeln('-- Data: ${DateTime.now().toIso8601String()}');
     buffer.writeln();
 
-    for (final table in tables) {
+    final sortedTables = _sortTablesByDependency(tables, relationships);
+
+    for (final table in sortedTables) {
       final schema = table.schema.isNotEmpty ? table.schema : 'dbo';
       final tableName = '[$schema].[${table.name}]';
 
@@ -39,6 +90,12 @@ class SqlserverGenerator implements SqlDialectGenerator {
         if (col.isUnique) {
           def += ' UNIQUE';
         }
+        // UNIQUEIDENTIFIER primary keys get NEWID() as default
+        if (col.dataType.toUpperCase() == 'UNIQUEIDENTIFIER' && col.isPrimaryKey) {
+          def += ' DEFAULT NEWID()';
+        } else if (col.defaultValue != null && col.defaultValue!.isNotEmpty) {
+          def += ' DEFAULT ${col.defaultValue}';
+        }
         colDefs.add(def);
       }
 
@@ -55,43 +112,45 @@ class SqlserverGenerator implements SqlDialectGenerator {
     }
 
     // Foreign Keys
+    // Na UI: arrastar de A para B significa "B referencia A"
+    // Então: fkTable = target (tem a FK), refTable = source (tem a PK)
     for (final rel in relationships) {
-      final sourceTable = tables.firstWhere(
+      final refTable = tables.firstWhere(
         (t) => t.id == rel.sourceTableId,
         orElse: () => TableModel(id: '', name: 'unknown', position: Offset.zero, columns: []),
       );
-      final targetTable = tables.firstWhere(
+      final fkTable = tables.firstWhere(
         (t) => t.id == rel.targetTableId,
         orElse: () => TableModel(id: '', name: 'unknown', position: Offset.zero, columns: []),
       );
-      final sourceCol = sourceTable.columns.firstWhere(
+      final refCol = refTable.columns.firstWhere(
         (c) => c.id == rel.sourceColumnId,
         orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INT'),
       );
-      final targetCol = targetTable.columns.firstWhere(
+      final fkCol = fkTable.columns.firstWhere(
         (c) => c.id == rel.targetColumnId,
         orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INT'),
       );
 
-      // Garantir que a coluna de destino tenha UNIQUE ou PRIMARY KEY
-      if (!targetCol.isPrimaryKey && !targetCol.isUnique) {
-        final targetSchema = targetTable.schema.isNotEmpty ? targetTable.schema : 'dbo';
-        buffer.writeln('-- Adicionar UNIQUE na coluna de destino para suportar FK');
-        buffer.writeln('ALTER TABLE [$targetSchema].[${targetTable.name}]');
-        buffer.writeln('    ADD CONSTRAINT [UQ_${targetTable.name}_${targetCol.name}]');
-        buffer.writeln('    UNIQUE ([${targetCol.name}]);');
+      // Garantir que a coluna referenciada tenha UNIQUE ou PRIMARY KEY
+      if (!refCol.isPrimaryKey && !refCol.isUnique) {
+        final refSchema = refTable.schema.isNotEmpty ? refTable.schema : 'dbo';
+        buffer.writeln('-- Adicionar UNIQUE na coluna referenciada para suportar FK');
+        buffer.writeln('ALTER TABLE [$refSchema].[${refTable.name}]');
+        buffer.writeln('    ADD CONSTRAINT [UQ_${refTable.name}_${refCol.name}]');
+        buffer.writeln('    UNIQUE ([${refCol.name}]);');
         buffer.writeln('GO');
         buffer.writeln();
       }
 
-      final sourceSchema = sourceTable.schema.isNotEmpty ? sourceTable.schema : 'dbo';
-      final targetSchema = targetTable.schema.isNotEmpty ? targetTable.schema : 'dbo';
-      final fkName = rel.name ?? 'FK_${sourceTable.name}_${targetTable.name}';
+      final fkSchema = fkTable.schema.isNotEmpty ? fkTable.schema : 'dbo';
+      final refSchema = refTable.schema.isNotEmpty ? refTable.schema : 'dbo';
+      final fkName = rel.name ?? 'FK_${fkTable.name}_${refTable.name}';
 
-      buffer.writeln('ALTER TABLE [$sourceSchema].[${sourceTable.name}]');
+      buffer.writeln('ALTER TABLE [$fkSchema].[${fkTable.name}]');
       buffer.writeln('    ADD CONSTRAINT [$fkName]');
-      buffer.writeln('    FOREIGN KEY ([${sourceCol.name}])');
-      buffer.writeln('    REFERENCES [$targetSchema].[${targetTable.name}] ([${targetCol.name}])');
+      buffer.writeln('    FOREIGN KEY ([${fkCol.name}])');
+      buffer.writeln('    REFERENCES [$refSchema].[${refTable.name}] ([${refCol.name}])');
       buffer.writeln('    ON DELETE ${rel.onDelete.sqlKeyword}');
       buffer.writeln('    ON UPDATE ${rel.onUpdate.sqlKeyword};');
       buffer.writeln('GO');
