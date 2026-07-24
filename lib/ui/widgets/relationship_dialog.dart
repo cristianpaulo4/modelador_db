@@ -84,24 +84,6 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
       final updatedTargetCols = [...targetTable.columns, newCol];
       canvasNotifier.updateTable(targetTable.copyWith(columns: updatedTargetCols));
       finalTargetColumnId = newColId;
-    } else {
-      // Garantir que a coluna FK existente tenha o mesmo tipo da coluna PK referenciada
-      final existingCol = targetTable.columns.firstWhere(
-        (c) => c.id == _selectedTargetColumnId,
-        orElse: () => ColumnModel(id: '', name: '', dataType: ''),
-      );
-      if (existingCol.id.isNotEmpty && existingCol.dataType != sourceCol.dataType) {
-        // Atualizar o tipo da coluna para corresponder à coluna referenciada
-        final updatedCol = existingCol.copyWith(
-          dataType: sourceCol.dataType,
-          lengthOrPrecision: sourceCol.lengthOrPrecision,
-          isForeignKey: true,
-        );
-        final updatedCols = targetTable.columns.map((c) {
-          return c.id == existingCol.id ? updatedCol : c;
-        }).toList();
-        canvasNotifier.updateTable(targetTable.copyWith(columns: updatedCols));
-      }
     }
 
     // Se está editando um relacionamento existente
@@ -160,6 +142,20 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
       orElse: () => ColumnModel(id: widget.sourceColumnId, name: 'coluna', dataType: 'INT4'),
     );
 
+    // Verificar se há incompatibilidade de tipo
+    bool hasTypeMismatch = false;
+    String targetType = '';
+    if (_selectedTargetColumnId != createNewFkKey) {
+      final targetCol = targetTable.columns.firstWhere(
+        (c) => c.id == _selectedTargetColumnId,
+        orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+      );
+      if (targetCol.id.isNotEmpty && targetCol.dataType != sourceCol.dataType) {
+        hasTypeMismatch = true;
+        targetType = targetCol.dataType;
+      }
+    }
+
     final isEditing = widget.existingRelationship != null;
 
     return AlertDialog(
@@ -216,42 +212,106 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
             // Seleção de Coluna de Destino (Existente ou Criar Nova)
             Text('Coluna de Destino na tabela ${targetTable.name}', style: theme.textTheme.labelMedium),
             const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: targetTable.columns.any((c) => c.id == _selectedTargetColumnId) || _selectedTargetColumnId == createNewFkKey
-                  ? _selectedTargetColumnId
-                  : createNewFkKey,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                DropdownMenuItem<String>(
-                  value: createNewFkKey,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.green),
-                      const SizedBox(width: 6),
-                      Text(
-                        '+ Criar nova coluna (${sourceTable.name}_${sourceCol.name})',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
-                      ),
-                    ],
-                  ),
+            SizedBox(
+              width: double.infinity,
+              child: DropdownButtonFormField<String>(
+                initialValue: targetTable.columns.any((c) => c.id == _selectedTargetColumnId) || _selectedTargetColumnId == createNewFkKey
+                    ? _selectedTargetColumnId
+                    : createNewFkKey,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: const OutlineInputBorder(),
+                  enabledBorder: hasTypeMismatch
+                      ? OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                        )
+                      : null,
+                  focusedBorder: hasTypeMismatch
+                      ? OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                        )
+                      : null,
+                  errorBorder: hasTypeMismatch
+                      ? OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                        )
+                      : null,
                 ),
-                ...targetTable.columns.map((c) {
-                  return DropdownMenuItem<String>(
-                    value: c.id,
-                    child: Text('${c.name} (${c.dataType})', style: const TextStyle(fontSize: 12)),
-                  );
-                }),
-              ],
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _selectedTargetColumnId = val);
-                }
-              },
+                items: [
+                  DropdownMenuItem<String>(
+                    value: createNewFkKey,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.green),
+                        const SizedBox(width: 6),
+                        Text(
+                          '+ Nova coluna',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...targetTable.columns.map((c) {
+                    final isTypeWrong = c.dataType != sourceCol.dataType;
+                    return DropdownMenuItem<String>(
+                      value: c.id,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${c.name} (${c.dataType})',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isTypeWrong ? Colors.red : null,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isTypeWrong)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.warning_rounded, size: 16, color: Colors.red),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedTargetColumnId = val);
+                  }
+                },
+              ),
             ),
+
+            // Mensagem de erro de incompatibilidade de tipo
+            if (hasTypeMismatch) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Tipo incompatível! Coluna FK é "$targetType" mas a coluna referenciada é "${sourceCol.dataType}". Selecione uma coluna com o mesmo tipo ou crie uma nova.',
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 16),
 
@@ -357,11 +417,11 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton.icon(
-          onPressed: _onSave,
+          onPressed: hasTypeMismatch ? null : _onSave,
           icon: const Icon(Icons.check_rounded, size: 18),
           label: Text(isEditing ? 'Salvar Alterações' : 'Criar Relacionamento'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: theme.colorScheme.primary,
+            backgroundColor: hasTypeMismatch ? Colors.grey : theme.colorScheme.primary,
             foregroundColor: Colors.white,
           ),
         ),

@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/models/column_model.dart';
+import '../../data/models/relationship_model.dart';
 import '../../data/models/table_model.dart';
 import '../../state/canvas_provider.dart';
+import '../../state/canvas_state.dart';
 
 class TableCardWidget extends ConsumerStatefulWidget {
   final TableModel table;
@@ -124,6 +126,43 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     setState(() {
       _isEditingTableName = false;
     });
+  }
+
+  /// Verifica se uma coluna FK tem incompatibilidade de tipo com a coluna referenciada
+  bool _hasFkTypeMismatch(ColumnModel col, CanvasState canvasState) {
+    if (!col.isForeignKey) return false;
+
+    // Encontrar o relacionamento onde esta coluna é a FK
+    final rel = canvasState.relationships.firstWhere(
+      (r) => r.targetTableId == widget.table.id && r.targetColumnId == col.id,
+      orElse: () => RelationshipModel(
+        id: '',
+        sourceTableId: '',
+        targetTableId: '',
+        sourceColumnId: '',
+        targetColumnId: '',
+      ),
+    );
+
+    if (rel.id.isEmpty) return false;
+
+    // Encontrar a tabela referenciada e sua coluna PK
+    final refTable = canvasState.tables.firstWhere(
+      (t) => t.id == rel.sourceTableId,
+      orElse: () => TableModel(id: '', name: '', position: Offset.zero, columns: []),
+    );
+
+    if (refTable.id.isEmpty) return false;
+
+    final refCol = refTable.columns.firstWhere(
+      (c) => c.id == rel.sourceColumnId,
+      orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+    );
+
+    if (refCol.id.isEmpty) return false;
+
+    // Comparar tipos
+    return col.dataType != refCol.dataType;
   }
 
   @override
@@ -592,12 +631,17 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                               (selectedRel.targetTableId == widget.table.id &&
                                   selectedRel.targetColumnId == col.id));
 
+                      // Verificar incompatibilidade de tipo na FK
+                      final hasFkTypeError = _hasFkTypeMismatch(col, canvasState);
+
                       return GestureDetector(
                         onTap: () =>
                             _startEditingColumn(col, availableDataTypes),
                         behavior: HitTestBehavior.opaque,
                         child: Tooltip(
-                          message: isColRelatedToSelectedRel
+                          message: hasFkTypeError
+                              ? 'Tipo incompatível com a coluna referenciada!'
+                              : isColRelatedToSelectedRel
                               ? 'Coluna vinculada ao relacionamento selecionado'
                               : 'Clique para editar nome e tipo',
                           waitDuration: const Duration(milliseconds: 300),
@@ -607,15 +651,22 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: isColRelatedToSelectedRel
+                              color: hasFkTypeError
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : isColRelatedToSelectedRel
                                   ? theme.colorScheme.primary.withValues(
                                       alpha: 0.22,
                                     )
                                   : Colors.transparent,
-                              borderRadius: isColRelatedToSelectedRel
+                              borderRadius: (isColRelatedToSelectedRel || hasFkTypeError)
                                   ? BorderRadius.circular(6)
                                   : null,
-                              border: isColRelatedToSelectedRel
+                              border: hasFkTypeError
+                                  ? Border.all(
+                                      color: Colors.red,
+                                      width: 1.5,
+                                    )
+                                  : isColRelatedToSelectedRel
                                   ? Border.all(
                                       color: theme.colorScheme.primary,
                                       width: 1.5,
@@ -630,7 +681,15 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                         width: 0.5,
                                       ),
                                     ),
-                              boxShadow: isColRelatedToSelectedRel
+                              boxShadow: hasFkTypeError
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.red.withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        spreadRadius: 1,
+                                      ),
+                                    ]
+                                  : isColRelatedToSelectedRel
                                   ? [
                                       BoxShadow(
                                         color: theme.colorScheme.primary
@@ -655,8 +714,8 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                 if (col.isForeignKey) ...[
                                   _buildBadge(
                                     'FK',
-                                    AppColors.foreignKeyCyan,
-                                    Colors.black,
+                                    hasFkTypeError ? Colors.red : AppColors.foreignKeyCyan,
+                                    Colors.white,
                                   ),
                                   const SizedBox(width: 4),
                                 ],
