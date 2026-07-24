@@ -309,23 +309,31 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                           color: theme.colorScheme.outline,
                                         ),
                                       ),
-                                      child: TextField(
-                                        controller: _tableNameController,
-                                        autofocus: true,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.onSurface,
+                                      child: GestureDetector(
+                                        onDoubleTap: () {
+                                          _tableNameController.selection = TextSelection(
+                                            baseOffset: 0,
+                                            extentOffset: _tableNameController.text.length,
+                                          );
+                                        },
+                                        child: TextField(
+                                          controller: _tableNameController,
+                                          autofocus: true,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            isDense: true,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                          onSubmitted: (_) =>
+                                              _saveTableNameEdit(),
                                         ),
-                                        decoration: const InputDecoration(
-                                          isDense: true,
-                                          border: InputBorder.none,
-                                          enabledBorder: InputBorder.none,
-                                          focusedBorder: InputBorder.none,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        onSubmitted: (_) =>
-                                            _saveTableNameEdit(),
                                       ),
                                     ),
                                   ),
@@ -454,25 +462,33 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                           color: theme.colorScheme.outline,
                                         ),
                                       ),
-                                      child: TextField(
-                                        controller: _colNameController,
-                                        autofocus: true,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                        decoration: const InputDecoration(
-                                          hintText: 'Nome da Coluna',
-                                          isDense: true,
-                                          border: InputBorder.none,
-                                          enabledBorder: InputBorder.none,
-                                          focusedBorder: InputBorder.none,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        onSubmitted: (_) => _saveColumnEdit(
-                                          widget.table.id,
-                                          col,
+                                      child: GestureDetector(
+                                        onDoubleTap: () {
+                                          _colNameController.selection = TextSelection(
+                                            baseOffset: 0,
+                                            extentOffset: _colNameController.text.length,
+                                          );
+                                        },
+                                        child: TextField(
+                                          controller: _colNameController,
+                                          autofocus: true,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            hintText: 'Nome da Coluna',
+                                            isDense: true,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                          onSubmitted: (_) => _saveColumnEdit(
+                                            widget.table.id,
+                                            col,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -594,24 +610,32 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                           color: theme.colorScheme.outline,
                                         ),
                                       ),
-                                      child: TextField(
-                                        controller: _lengthController,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontFamily: 'monospace',
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                        decoration: const InputDecoration(
-                                          hintText: 'Tam (ex: 255)',
-                                          isDense: true,
-                                          border: InputBorder.none,
-                                          enabledBorder: InputBorder.none,
-                                          focusedBorder: InputBorder.none,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        onSubmitted: (_) => _saveColumnEdit(
-                                          widget.table.id,
-                                          col,
+                                      child: GestureDetector(
+                                        onDoubleTap: () {
+                                          _lengthController.selection = TextSelection(
+                                            baseOffset: 0,
+                                            extentOffset: _lengthController.text.length,
+                                          );
+                                        },
+                                        child: TextField(
+                                          controller: _lengthController,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontFamily: 'monospace',
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                          decoration: const InputDecoration(
+                                            hintText: 'Tam (ex: 255)',
+                                            isDense: true,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            contentPadding: EdgeInsets.zero,
+                                          ),
+                                          onSubmitted: (_) => _saveColumnEdit(
+                                            widget.table.id,
+                                            col,
+                                          ),
                                         ),
                                       ),
                                     ),

@@ -75,6 +75,12 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     }
 
     _initialSchemaLoaded = true;
+
+    // Centralizar após carregar o esquema
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fitView();
+      _updateViewportCenter();
+    });
   }
 
   @override
@@ -595,7 +601,12 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
             child: Row(
               children: [
                 // Sidebar Lateral Esquerda (Esquemas / Projetos)
-                const SchemasSidebar(),
+                SchemasSidebar(
+                  onSchemaChanged: () {
+                    _fitView();
+                    _updateViewportCenter();
+                  },
+                ),
 
                 // Canvas Principal Interativo
                 Expanded(

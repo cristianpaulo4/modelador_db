@@ -6,7 +6,8 @@ import '../../state/canvas_provider.dart';
 import '../../state/schemas_provider.dart';
 
 class SchemasSidebar extends ConsumerStatefulWidget {
-  const SchemasSidebar({super.key});
+  final VoidCallback? onSchemaChanged;
+  const SchemasSidebar({super.key, this.onSchemaChanged});
 
   @override
   ConsumerState<SchemasSidebar> createState() => _SchemasSidebarState();
@@ -104,6 +105,11 @@ class _SchemasSidebarState extends ConsumerState<SchemasSidebar> {
 
     schemasNotifier.selectSchema(schema.id);
     canvasNotifier.importDdlResult(schema.tables, schema.relationships);
+
+    // Notificar que o schema foi alterado (para centralizar o canvas)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onSchemaChanged?.call();
+    });
   }
 
   @override
