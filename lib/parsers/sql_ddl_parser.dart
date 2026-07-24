@@ -200,7 +200,9 @@ class SqlDdlParser {
     const colsPerRow = 3;
     final row = gridIndex ~/ colsPerRow;
     final colPos = gridIndex % colsPerRow;
-    final position = Offset(100.0 + (colPos * 340.0), 120.0 + (row * 300.0));
+    final posX = (100.0 + (colPos * 340.0)).clamp(0.0, 3740.0);
+    final posY = (120.0 + (row * 300.0)).clamp(0.0, 3600.0);
+    final position = Offset(posX, posY);
 
     return _ParsedTableResult(
       table: TableModel(

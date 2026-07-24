@@ -11,13 +11,7 @@ import 'canvas_state.dart';
 final _uuid = const Uuid();
 
 class CanvasNotifier extends StateNotifier<CanvasState> {
-  CanvasNotifier()
-      : super(
-          const CanvasState(
-            tables: [],
-            relationships: [],
-          ),
-        ) {
+  CanvasNotifier() : super(const CanvasState(tables: [], relationships: [])) {
     _createInitialSampleData();
   }
 
@@ -153,10 +147,15 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void updateTablePosition(String tableId, Offset newPosition) {
+    // Garantir que a posição da tabela nunca fique fora dos limites do Canvas (evitando perder o hit-test/seleção)
+    final clampedX = newPosition.dx.clamp(0.0, 3740.0);
+    final clampedY = newPosition.dy.clamp(0.0, 3600.0);
+    final clampedPosition = Offset(clampedX, clampedY);
+
     state = state.copyWith(
       tables: state.tables.map((t) {
         if (t.id == tableId) {
-          return t.copyWith(position: newPosition);
+          return t.copyWith(position: clampedPosition);
         }
         return t;
       }).toList(),
@@ -165,7 +164,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
 
   void updateTable(TableModel updatedTable) {
     state = state.copyWith(
-      tables: state.tables.map((t) => t.id == updatedTable.id ? updatedTable : t).toList(),
+      tables: state.tables
+          .map((t) => t.id == updatedTable.id ? updatedTable : t)
+          .toList(),
     );
   }
 
@@ -173,7 +174,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = state.copyWith(
       tables: state.tables.where((t) => t.id != tableId).toList(),
       relationships: state.relationships
-          .where((r) => r.sourceTableId != tableId && r.targetTableId != tableId)
+          .where(
+            (r) => r.sourceTableId != tableId && r.targetTableId != tableId,
+          )
           .toList(),
       clearSelectedTable: state.selectedTableId == tableId,
     );
@@ -201,7 +204,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = state.copyWith(
       tables: state.tables.map((t) {
         if (t.id == tableId) {
-          final updatedCols = t.columns.map((c) => c.id == updatedColumn.id ? updatedColumn : c).toList();
+          final updatedCols = t.columns
+              .map((c) => c.id == updatedColumn.id ? updatedColumn : c)
+              .toList();
           return t.copyWith(columns: updatedCols);
         }
         return t;
@@ -213,12 +218,16 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = state.copyWith(
       tables: state.tables.map((t) {
         if (t.id == tableId) {
-          return t.copyWith(columns: t.columns.where((c) => c.id != columnId).toList());
+          return t.copyWith(
+            columns: t.columns.where((c) => c.id != columnId).toList(),
+          );
         }
         return t;
       }).toList(),
       relationships: state.relationships
-          .where((r) => r.sourceColumnId != columnId && r.targetColumnId != columnId)
+          .where(
+            (r) => r.sourceColumnId != columnId && r.targetColumnId != columnId,
+          )
           .toList(),
     );
   }
@@ -240,7 +249,8 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   void addRelationship(RelationshipModel newRel) {
     final sourceTable = state.tables.firstWhere(
       (t) => t.id == newRel.sourceTableId,
-      orElse: () => TableModel(id: '', name: '', position: Offset.zero, columns: []),
+      orElse: () =>
+          TableModel(id: '', name: '', position: Offset.zero, columns: []),
     );
     if (sourceTable.id.isNotEmpty) {
       final updatedCols = sourceTable.columns.map((c) {
@@ -304,7 +314,9 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
 
   void updateRelationship(RelationshipModel updatedRel) {
     state = state.copyWith(
-      relationships: state.relationships.map((r) => r.id == updatedRel.id ? updatedRel : r).toList(),
+      relationships: state.relationships
+          .map((r) => r.id == updatedRel.id ? updatedRel : r)
+          .toList(),
     );
   }
 
@@ -354,7 +366,10 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     };
   }
 
-  void importDdlResult(List<TableModel> tables, List<RelationshipModel> relationships) {
+  void importDdlResult(
+    List<TableModel> tables,
+    List<RelationshipModel> relationships,
+  ) {
     state = state.copyWith(
       tables: tables,
       relationships: relationships,
@@ -373,8 +388,12 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     final tablesJson = json['tables'] as List<dynamic>? ?? [];
     final relsJson = json['relationships'] as List<dynamic>? ?? [];
 
-    final tables = tablesJson.map((e) => TableModel.fromJson(e as Map<String, dynamic>)).toList();
-    final rels = relsJson.map((e) => RelationshipModel.fromJson(e as Map<String, dynamic>)).toList();
+    final tables = tablesJson
+        .map((e) => TableModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final rels = relsJson
+        .map((e) => RelationshipModel.fromJson(e as Map<String, dynamic>))
+        .toList();
 
     state = state.copyWith(
       activeDialect: dialect,
@@ -386,6 +405,8 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 }
 
-final canvasProvider = StateNotifierProvider<CanvasNotifier, CanvasState>((ref) {
+final canvasProvider = StateNotifierProvider<CanvasNotifier, CanvasState>((
+  ref,
+) {
   return CanvasNotifier();
 });
