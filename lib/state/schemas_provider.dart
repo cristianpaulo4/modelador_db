@@ -71,15 +71,25 @@ class SchemasNotifier extends StateNotifier<SchemasState> {
       if (file != null && await file.exists()) {
         final content = await file.readAsString();
         if (content.isNotEmpty) {
-          final List<dynamic> jsonList = jsonDecode(content);
-          final loaded = jsonList
-              .map((item) => ProjectSchemaModel.fromJson(item as Map<String, dynamic>))
-              .toList();
+          final Map<String, dynamic> jsonData = jsonDecode(content);
+          final schemasList = jsonData['schemas'] as List<dynamic>?;
+          final savedActiveId = jsonData['activeSchemaId'] as String?;
 
-          if (loaded.isNotEmpty) {
+          if (schemasList != null && schemasList.isNotEmpty) {
+            final loaded = schemasList
+                .map((item) => ProjectSchemaModel.fromJson(item as Map<String, dynamic>))
+                .toList();
+
+            // Restaurar o último esquema selecionado, ou usar o primeiro
+            String activeId = loaded.first.id;
+            if (savedActiveId != null &&
+                loaded.any((s) => s.id == savedActiveId)) {
+              activeId = savedActiveId;
+            }
+
             state = state.copyWith(
               schemas: loaded,
-              activeSchemaId: loaded.first.id,
+              activeSchemaId: activeId,
             );
             return;
           }
@@ -107,8 +117,11 @@ class SchemasNotifier extends StateNotifier<SchemasState> {
     try {
       final file = _getStorageFile();
       if (file != null) {
-        final jsonList = state.schemas.map((s) => s.toJson()).toList();
-        await file.writeAsString(jsonEncode(jsonList));
+        final jsonData = {
+          'schemas': state.schemas.map((s) => s.toJson()).toList(),
+          'activeSchemaId': state.activeSchemaId,
+        };
+        await file.writeAsString(jsonEncode(jsonData));
       }
     } catch (_) {}
   }

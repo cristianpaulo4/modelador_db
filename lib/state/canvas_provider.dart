@@ -11,11 +11,9 @@ import 'canvas_state.dart';
 final _uuid = const Uuid();
 
 class CanvasNotifier extends StateNotifier<CanvasState> {
-  CanvasNotifier() : super(const CanvasState(tables: [], relationships: [])) {
-    _createInitialSampleData();
-  }
+  CanvasNotifier() : super(const CanvasState(tables: [], relationships: []));
 
-  void _createInitialSampleData() {
+  void createSampleData() {
     final userIdColId = _uuid.v4();
     final orderIdColId = _uuid.v4();
     final orderUserIdColId = _uuid.v4();

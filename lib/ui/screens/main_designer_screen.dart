@@ -29,12 +29,37 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
   late final TransformationController _transformationController;
   final GlobalKey _canvasKey = GlobalKey();
   double _currentScale = 1.0;
+  bool _initialSchemaLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _transformationController = TransformationController();
     _transformationController.addListener(_onTransformationChanged);
+  }
+
+  void _loadActiveSchema() {
+    final schemasState = ref.read(schemasProvider);
+    final canvasNotifier = ref.read(canvasProvider.notifier);
+    final activeSchema = schemasState.activeSchema;
+
+    if (activeSchema != null && activeSchema.tables.isNotEmpty) {
+      canvasNotifier.importDdlResult(
+        activeSchema.tables,
+        activeSchema.relationships,
+      );
+    } else if (activeSchema != null && activeSchema.tables.isEmpty) {
+      // Esquema vazio (novo) — criar dados de exemplo e salvar
+      canvasNotifier.createSampleData();
+      ref.read(schemasProvider.notifier).updateActiveSchemaData(
+        activeSchema.copyWith(
+          tables: ref.read(canvasProvider).tables,
+          relationships: ref.read(canvasProvider).relationships,
+        ),
+      );
+    }
+
+    _initialSchemaLoaded = true;
   }
 
   @override
@@ -313,8 +338,15 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Carregar esquema ativo no canvas quando os schemas terminarem de carregar do disco
+    ref.listen<SchemasState>(schemasProvider, (previous, next) {
+      if (!_initialSchemaLoaded && next.schemas.isNotEmpty) {
+        _loadActiveSchema();
+      }
+    });
+
     ref.listen<CanvasState>(canvasProvider, (previous, next) {
-      if (previous != next) {
+      if (previous != next && _initialSchemaLoaded) {
         final activeSchema = ref.read(schemasProvider).activeSchema;
         if (activeSchema != null) {
           ref.read(schemasProvider.notifier).updateActiveSchemaData(
