@@ -70,6 +70,14 @@ class MysqlGenerator implements SqlDialectGenerator {
         orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INT'),
       );
 
+      // Garantir que a coluna de destino tenha UNIQUE ou PRIMARY KEY
+      if (!targetCol.isPrimaryKey && !targetCol.isUnique) {
+        buffer.writeln('-- Adicionar UNIQUE na coluna de destino para suportar FK');
+        buffer.writeln('ALTER TABLE `${targetTable.name}`');
+        buffer.writeln('  ADD UNIQUE INDEX `uq_${targetTable.name}_${targetCol.name}` (`${targetCol.name}`);');
+        buffer.writeln();
+      }
+
       final fkName = rel.name ?? 'fk_${sourceTable.name}_${targetTable.name}';
       buffer.writeln('ALTER TABLE `${sourceTable.name}`');
       buffer.writeln('  ADD CONSTRAINT `$fkName`');

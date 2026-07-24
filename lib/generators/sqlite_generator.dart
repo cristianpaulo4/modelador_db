@@ -17,6 +17,33 @@ class SqliteGenerator implements SqlDialectGenerator {
     buffer.writeln('PRAGMA foreign_keys = ON;');
     buffer.writeln();
 
+    // Primeiro, garantir UNIQUE nas colunas de destino que precisam
+    final uniqueConstraints = <String>[];
+    for (final rel in relationships) {
+      final targetTable = tables.firstWhere(
+        (t) => t.id == rel.targetTableId,
+        orElse: () => TableModel(id: '', name: 'unknown', position: Offset.zero, columns: []),
+      );
+      final targetCol = targetTable.columns.firstWhere(
+        (c) => c.id == rel.targetColumnId,
+        orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INTEGER'),
+      );
+
+      if (!targetCol.isPrimaryKey && !targetCol.isUnique) {
+        uniqueConstraints.add(
+          'ALTER TABLE "${targetTable.name}" ADD CONSTRAINT "uq_${targetTable.name}_${targetCol.name}" UNIQUE ("${targetCol.name}");',
+        );
+      }
+    }
+
+    if (uniqueConstraints.isNotEmpty) {
+      buffer.writeln('-- Garantir UNIQUE nas colunas de destino para FKs');
+      for (final constraint in uniqueConstraints) {
+        buffer.writeln(constraint);
+      }
+      buffer.writeln();
+    }
+
     for (final table in tables) {
       buffer.writeln('CREATE TABLE IF NOT EXISTS "${table.name}" (');
       final colDefs = <String>[];

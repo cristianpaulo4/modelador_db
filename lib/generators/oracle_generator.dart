@@ -69,6 +69,16 @@ class OracleGenerator implements SqlDialectGenerator {
         orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'NUMBER'),
       );
 
+      // Garantir que a coluna de destino tenha UNIQUE ou PRIMARY KEY
+      if (!targetCol.isPrimaryKey && !targetCol.isUnique) {
+        final tName = targetTable.name.toUpperCase();
+        buffer.writeln('-- Adicionar UNIQUE na coluna de destino para suportar FK');
+        buffer.writeln('ALTER TABLE "$tName"');
+        buffer.writeln('    ADD CONSTRAINT "UQ_${tName}_${targetCol.name.toUpperCase()}"');
+        buffer.writeln('    UNIQUE ("${targetCol.name.toUpperCase()}");');
+        buffer.writeln();
+      }
+
       final sName = sourceTable.name.toUpperCase();
       final tName = targetTable.name.toUpperCase();
       final fkName = (rel.name ?? 'FK_${sName}_$tName').toUpperCase();

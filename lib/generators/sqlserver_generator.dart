@@ -73,6 +73,17 @@ class SqlserverGenerator implements SqlDialectGenerator {
         orElse: () => const ColumnModel(id: '', name: 'id', dataType: 'INT'),
       );
 
+      // Garantir que a coluna de destino tenha UNIQUE ou PRIMARY KEY
+      if (!targetCol.isPrimaryKey && !targetCol.isUnique) {
+        final targetSchema = targetTable.schema.isNotEmpty ? targetTable.schema : 'dbo';
+        buffer.writeln('-- Adicionar UNIQUE na coluna de destino para suportar FK');
+        buffer.writeln('ALTER TABLE [$targetSchema].[${targetTable.name}]');
+        buffer.writeln('    ADD CONSTRAINT [UQ_${targetTable.name}_${targetCol.name}]');
+        buffer.writeln('    UNIQUE ([${targetCol.name}]);');
+        buffer.writeln('GO');
+        buffer.writeln();
+      }
+
       final sourceSchema = sourceTable.schema.isNotEmpty ? sourceTable.schema : 'dbo';
       final targetSchema = targetTable.schema.isNotEmpty ? targetTable.schema : 'dbo';
       final fkName = rel.name ?? 'FK_${sourceTable.name}_${targetTable.name}';
