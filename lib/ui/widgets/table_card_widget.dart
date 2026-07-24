@@ -47,6 +47,7 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
   String? _editingColumnId;
   late TextEditingController _colNameController;
   late TextEditingController _lengthController;
+  late FocusNode _colNameFocusNode;
   String _selectedDataType = 'VARCHAR';
 
   // Estado para Edição Inline de Nome da Tabela
@@ -59,6 +60,7 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     _colNameController = TextEditingController();
     _lengthController = TextEditingController();
     _tableNameController = TextEditingController();
+    _colNameFocusNode = FocusNode();
   }
 
   @override
@@ -66,6 +68,7 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     _colNameController.dispose();
     _lengthController.dispose();
     _tableNameController.dispose();
+    _colNameFocusNode.dispose();
     super.dispose();
   }
 
@@ -77,6 +80,14 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
       _selectedDataType = availableTypes.contains(col.dataType)
           ? col.dataType
           : (availableTypes.isNotEmpty ? availableTypes.first : col.dataType);
+    });
+    // Solicitar foco no campo de nome após o setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _colNameFocusNode.requestFocus();
+      _colNameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _colNameController.text.length,
+      );
     });
   }
 
@@ -471,7 +482,8 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                         },
                                         child: TextField(
                                           controller: _colNameController,
-                                          autofocus: true,
+                                          focusNode: _colNameFocusNode,
+                                          autofocus: false,
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
