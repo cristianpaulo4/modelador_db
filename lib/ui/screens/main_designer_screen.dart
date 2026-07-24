@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -28,14 +29,25 @@ class MainDesignerScreen extends ConsumerStatefulWidget {
 class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
   late final TransformationController _transformationController;
   final GlobalKey _canvasKey = GlobalKey();
+  final FocusNode _focusNode = FocusNode();
   double _currentScale = 1.0;
   bool _initialSchemaLoaded = false;
+
+  // Estado de marquee selection
+  Offset? _marqueeStart;
+  Offset? _marqueeEnd;
+  bool _isMarqueeDragging = false;
 
   @override
   void initState() {
     super.initState();
     _transformationController = TransformationController();
     _transformationController.addListener(_onTransformationChanged);
+
+    // Atualizar centro da viewport após o primeiro frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateViewportCenter();
+    });
   }
 
   void _loadActiveSchema() {
@@ -66,7 +78,69 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
   void dispose() {
     _transformationController.removeListener(_onTransformationChanged);
     _transformationController.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
+    final canvasNotifier = ref.read(canvasProvider.notifier);
+    final canvasState = ref.read(canvasProvider);
+
+    // Delete/DeleteSelection
+    if (event.logicalKey == LogicalKeyboardKey.delete ||
+        event.logicalKey == LogicalKeyboardKey.backspace) {
+      if (canvasState.selectedTableIds.isNotEmpty) {
+        canvasNotifier.deleteSelectedTables();
+      } else if (canvasState.selectedTableId != null) {
+        canvasNotifier.deleteTable(canvasState.selectedTableId!);
+      }
+    }
+
+    // Ctrl+A - Selecionar todas as tabelas
+    if (event.logicalKey == LogicalKeyboardKey.keyA &&
+        HardwareKeyboard.instance.isControlPressed) {
+      final allIds = canvasState.tables.map((t) => t.id).toSet();
+      canvasNotifier.selectMultipleTables(allIds);
+    }
+
+    // Ctrl+Z - Desfazer
+    if (event.logicalKey == LogicalKeyboardKey.keyZ &&
+        HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isShiftPressed) {
+      canvasNotifier.undo();
+    }
+
+    // Ctrl+Shift+Z ou Ctrl+Y - Refazer
+    if ((event.logicalKey == LogicalKeyboardKey.keyZ &&
+            HardwareKeyboard.instance.isControlPressed &&
+            HardwareKeyboard.instance.isShiftPressed) ||
+        (event.logicalKey == LogicalKeyboardKey.keyY &&
+            HardwareKeyboard.instance.isControlPressed)) {
+      canvasNotifier.redo();
+    }
+
+    // Escape - Limpar seleção
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      canvasNotifier.clearSelection();
+    }
+  }
+
+  Set<String> _getTablesInMarqueeRect(Rect marqueeRect, CanvasState state) {
+    final selectedIds = <String>{};
+    for (final t in state.tables) {
+      final height = 44.0 + (t.columns.length * 30.0) + 8.0;
+      final tableRect = Rect.fromLTWH(
+        t.position.dx,
+        t.position.dy,
+        260.0,
+        height,
+      );
+      if (marqueeRect.overlaps(tableRect)) {
+        selectedIds.add(t.id);
+      }
+    }
+    return selectedIds;
   }
 
   Offset _globalToCanvas(Offset globalPosition) {
@@ -86,6 +160,31 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
         _currentScale = scale;
       });
     }
+
+    // Atualizar centro da viewport no estado do canvas
+    _updateViewportCenter();
+  }
+
+  void _updateViewportCenter() {
+    final RenderBox? renderBox =
+        _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
+    // Centro do viewport em coordenadas de tela
+    final Size viewportSize = renderBox.size;
+    final Offset screenCenter = Offset(
+      viewportSize.width / 2,
+      viewportSize.height / 2,
+    );
+
+    // Converter para coordenadas do canvas
+    final canvasCenter = _globalToCanvas(
+      renderBox.localToGlobal(screenCenter),
+    );
+
+    // Atualizar no estado (sem undo)
+    final canvasNotifier = ref.read(canvasProvider.notifier);
+    canvasNotifier.updateViewportCenter(canvasCenter);
   }
 
   void _zoomByFactor(double factor) {
@@ -385,10 +484,14 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
 
     return Scaffold(
       backgroundColor: canvasBg,
-      body: Column(
-        children: [
-          // Header / Toolbar superior
-          const HeaderToolbar(),
+      body: KeyboardListener(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: Column(
+          children: [
+            // Header / Toolbar superior
+            const HeaderToolbar(),
 
           // Banner de aviso durante o Modo de Conexão
           if (canvasState.isConnectingMode)
@@ -456,9 +559,81 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
                                 if (hitRel != null) {
                                   canvasNotifier.selectRelationship(hitRel.id);
                                 } else {
-                                  canvasNotifier.selectTable(null);
-                                  canvasNotifier.selectRelationship(null);
+                                  canvasNotifier.clearSelection();
                                 }
+                              },
+                              onPanStart: (details) {
+                                // Verificar se clicou em uma tabela
+                                final canvasPoint =
+                                    _globalToCanvas(details.globalPosition);
+                                bool hitTable = false;
+                                for (final t in canvasState.tables) {
+                                  final height =
+                                      44.0 + (t.columns.length * 30.0) + 8.0;
+                                  final rect = Rect.fromLTWH(
+                                    t.position.dx,
+                                    t.position.dy,
+                                    260.0,
+                                    height,
+                                  );
+                                  if (rect.contains(canvasPoint)) {
+                                    hitTable = true;
+                                    break;
+                                  }
+                                }
+
+                                // Se não clicou em tabela, iniciar marquee
+                                if (!hitTable) {
+                                  setState(() {
+                                    _marqueeStart = details.globalPosition;
+                                    _marqueeEnd = details.globalPosition;
+                                    _isMarqueeDragging = true;
+                                  });
+                                }
+                              },
+                              onPanUpdate: (details) {
+                                if (_isMarqueeDragging) {
+                                  setState(() {
+                                    _marqueeEnd = details.globalPosition;
+                                  });
+
+                                  // Calcular retângulo de marquee no espaço do canvas
+                                  final startCanvas =
+                                      _globalToCanvas(_marqueeStart!);
+                                  final endCanvas =
+                                      _globalToCanvas(_marqueeEnd!);
+                                  final marqueeRect = Rect.fromPoints(
+                                    startCanvas,
+                                    endCanvas,
+                                  );
+
+                                  // Selecionar tabelas dentro do retângulo
+                                  final selectedIds = _getTablesInMarqueeRect(
+                                    marqueeRect,
+                                    canvasState,
+                                  );
+                                  if (selectedIds.isNotEmpty) {
+                                    canvasNotifier.selectMultipleTables(
+                                      selectedIds,
+                                    );
+                                  }
+                                }
+                              },
+                              onPanEnd: (_) {
+                                if (_isMarqueeDragging) {
+                                  setState(() {
+                                    _isMarqueeDragging = false;
+                                    _marqueeStart = null;
+                                    _marqueeEnd = null;
+                                  });
+                                }
+                              },
+                              onPanCancel: () {
+                                setState(() {
+                                  _isMarqueeDragging = false;
+                                  _marqueeStart = null;
+                                  _marqueeEnd = null;
+                                });
                               },
                               onDoubleTapDown: (details) {
                                 final canvasPoint =
@@ -509,11 +684,14 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
 
                                   // Renderização das Tabelas Móveis
                                   ...canvasState.tables.map((t) {
+                                    final isSelected =
+                                        t.id == canvasState.selectedTableId ||
+                                        canvasState.selectedTableIds
+                                            .contains(t.id);
                                     return TableCardWidget(
                                       key: ValueKey(t.id),
                                       table: t,
-                                      isSelected:
-                                          t.id == canvasState.selectedTableId,
+                                      isSelected: isSelected,
                                       isConnectingSource:
                                           t.id ==
                                           canvasState.connectionSourceTableId,
@@ -572,6 +750,23 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
                                           endPoint:
                                               _dragConnectionCurrentCanvas!,
                                           lineColor: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+
+                                  // Overlay de Marquee Selection
+                                  if (_isMarqueeDragging &&
+                                      _marqueeStart != null &&
+                                      _marqueeEnd != null)
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: _MarqueeSelectionPainter(
+                                          start: _globalToCanvas(_marqueeStart!),
+                                          end: _globalToCanvas(_marqueeEnd!),
+                                          borderColor:
+                                              theme.colorScheme.primary,
+                                          fillColor: theme.colorScheme.primary
+                                              .withValues(alpha: 0.1),
                                         ),
                                       ),
                                     ),
@@ -672,6 +867,115 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
           ),
         ],
       ),
+      ),
     );
+  }
+}
+
+class _MarqueeSelectionPainter extends CustomPainter {
+  final Offset start;
+  final Offset end;
+  final Color borderColor;
+  final Color fillColor;
+
+  _MarqueeSelectionPainter({
+    required this.start,
+    required this.end,
+    required this.borderColor,
+    required this.fillColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromPoints(start, end);
+
+    // Preenchimento
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(rect, fillPaint);
+
+    // Borda tracejada
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    _drawDashedRect(canvas, rect, borderPaint);
+  }
+
+  void _drawDashedRect(Canvas canvas, Rect rect, Paint paint) {
+    const dashWidth = 6.0;
+    const dashSpace = 4.0;
+
+    // Top
+    _drawDashedLine(
+      canvas,
+      Offset(rect.left, rect.top),
+      Offset(rect.right, rect.top),
+      paint,
+      dashWidth,
+      dashSpace,
+    );
+    // Right
+    _drawDashedLine(
+      canvas,
+      Offset(rect.right, rect.top),
+      Offset(rect.right, rect.bottom),
+      paint,
+      dashWidth,
+      dashSpace,
+    );
+    // Bottom
+    _drawDashedLine(
+      canvas,
+      Offset(rect.right, rect.bottom),
+      Offset(rect.left, rect.bottom),
+      paint,
+      dashWidth,
+      dashSpace,
+    );
+    // Left
+    _drawDashedLine(
+      canvas,
+      Offset(rect.left, rect.bottom),
+      Offset(rect.left, rect.top),
+      paint,
+      dashWidth,
+      dashSpace,
+    );
+  }
+
+  void _drawDashedLine(
+    Canvas canvas,
+    Offset start,
+    Offset end,
+    Paint paint,
+    double dashWidth,
+    double dashSpace,
+  ) {
+    final dx = end.dx - start.dx;
+    final dy = end.dy - start.dy;
+    final length = Offset(dx, dy).distance;
+    final unitDx = dx / length;
+    final unitDy = dy / length;
+
+    double distance = 0;
+    while (distance < length) {
+      final p1 = Offset(
+        start.dx + unitDx * distance,
+        start.dy + unitDy * distance,
+      );
+      final p2 = Offset(
+        start.dx + unitDx * (distance + dashWidth).clamp(0, length),
+        start.dy + unitDy * (distance + dashWidth).clamp(0, length),
+      );
+      canvas.drawLine(p1, p2, paint);
+      distance += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MarqueeSelectionPainter oldDelegate) {
+    return start != oldDelegate.start || end != oldDelegate.end;
   }
 }

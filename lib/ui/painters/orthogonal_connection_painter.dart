@@ -41,11 +41,28 @@ class OrthogonalConnectionPainter extends CustomPainter {
       final isSelected = rel.id == selectedRelationshipId;
       final currentLineColor = isSelected ? selectedLineColor : lineColor;
 
-      final (sourceAnchor, targetAnchor) = GeometryUtils.getBestAnchorPair(sourceRect, targetRect);
-      final rawPathPoints = GeometryUtils.calculateOrthogonalPath(sourceAnchor, targetAnchor);
+      final (sourceAnchor, targetAnchor) = GeometryUtils.getBestAnchorPair(
+        sourceRect,
+        targetRect,
+      );
+      final rawPathPoints = GeometryUtils.calculateOrthogonalPath(
+        sourceAnchor,
+        targetAnchor,
+      );
 
-      _drawOrthogonalBezierPath(canvas, rawPathPoints, currentLineColor, isSelected);
-      _drawCardinalityBadges(canvas, rawPathPoints, rel.cardinality, currentLineColor, textColor);
+      _drawOrthogonalBezierPath(
+        canvas,
+        rawPathPoints,
+        currentLineColor,
+        isSelected,
+      );
+      _drawCardinalityBadges(
+        canvas,
+        rawPathPoints,
+        rel.cardinality,
+        currentLineColor,
+        textColor,
+      );
     }
   }
 
@@ -118,10 +135,7 @@ class OrthogonalConnectionPainter extends CustomPainter {
     if (points.length < 2) return;
 
     final pStart = points.first;
-    final pStartNext = points[1];
-
     final pEnd = points.last;
-    final pEndPrev = points[points.length - 2];
 
     String sourceText = 'N';
     String targetText = '1';
@@ -140,18 +154,67 @@ class OrthogonalConnectionPainter extends CustomPainter {
       targetText = 'M';
     }
 
-    _drawBadgeText(canvas, _offsetAlong(pStart, pStartNext, 18), sourceText, color, txtColor);
-    _drawBadgeText(canvas, _offsetAlong(pEnd, pEndPrev, 18), targetText, color, txtColor);
+    // Distância fixa de 28px da borda da tabela em todos os lados
+    const badgeOffset = 28.0;
+
+    // Calcular posição do badge para cada extremidade
+    final sourceBadgePos = _getBadgePositionFromAnchor(pStart, badgeOffset);
+    final targetBadgePos = _getBadgePositionFromAnchor(pEnd, badgeOffset);
+
+    _drawBadgeText(canvas, sourceBadgePos, sourceText, color, txtColor);
+    _drawBadgeText(canvas, targetBadgePos, targetText, color, txtColor);
   }
 
-  Offset _offsetAlong(Offset from, Offset to, double distance) {
-    final diff = to - from;
-    final len = diff.distance;
-    if (len == 0) return from;
-    return from + (diff / len) * distance;
+  /// Calcula a posição do badge baseada na distância perpendicular à borda da tabela
+  Offset _getBadgePositionFromAnchor(Offset anchor, double distance) {
+    // Encontrar qual tabela contém este ponto de ancoragem
+    for (final entry in tableRects.entries) {
+      final rect = entry.value;
+
+      // Calcular distância de cada lado
+      final distToLeft = (anchor.dx - rect.left).abs();
+      final distToRight = (anchor.dx - rect.right).abs();
+      final distToTop = (anchor.dy - rect.top).abs();
+      final distToBottom = (anchor.dy - rect.bottom).abs();
+
+      // Verificar se o ponto está dentro ou na borda do retângulo (com tolerância)
+      final isInsideX =
+          anchor.dx >= rect.left - 1 && anchor.dx <= rect.right + 1;
+      final isInsideY =
+          anchor.dy >= rect.top - 1 && anchor.dy <= rect.bottom + 1;
+
+      if (isInsideX && isInsideY) {
+        // Determinar qual lado está mais próximo
+        final minDist = [
+          distToLeft,
+          distToRight,
+          distToTop,
+          distToBottom,
+        ].reduce((a, b) => a < b ? a : b);
+
+        if (minDist == distToLeft) {
+          return Offset(rect.left - distance, anchor.dy);
+        } else if (minDist == distToRight) {
+          return Offset(rect.right + distance, anchor.dy);
+        } else if (minDist == distToTop) {
+          return Offset(anchor.dx, rect.top - distance);
+        } else {
+          return Offset(anchor.dx, rect.bottom + distance);
+        }
+      }
+    }
+
+    // Fallback: retornar posição com offset para cima
+    return Offset(anchor.dx, anchor.dy - distance);
   }
 
-  void _drawBadgeText(Canvas canvas, Offset center, String text, Color bg, Color textClr) {
+  void _drawBadgeText(
+    Canvas canvas,
+    Offset center,
+    String text,
+    Color bg,
+    Color textClr,
+  ) {
     final textSpan = TextSpan(
       text: text,
       style: TextStyle(
@@ -183,7 +246,10 @@ class OrthogonalConnectionPainter extends CustomPainter {
 
     textPainter.paint(
       canvas,
-      Offset(center.dx - textPainter.width / 2, center.dy - textPainter.height / 2),
+      Offset(
+        center.dx - textPainter.width / 2,
+        center.dy - textPainter.height / 2,
+      ),
     );
   }
 

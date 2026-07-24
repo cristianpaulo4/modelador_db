@@ -34,6 +34,7 @@ class TableCardWidget extends ConsumerStatefulWidget {
 
 class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
   Offset? _grabOffset;
+  Offset? _lastPanCanvasPoint;
   bool _isConnectingDrag = false;
 
   // Estado para Edição Inline de Coluna
@@ -153,19 +154,35 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
           if (_isConnectingDrag) return;
           final canvasPoint = widget.globalToCanvas(details.globalPosition);
           _grabOffset = canvasPoint - widget.table.position;
-          widget.onTap();
+          _lastPanCanvasPoint = canvasPoint;
+          // Se a tabela faz parte de multi-seleção, não limpa a seleção
+          if (!canvasState.selectedTableIds.contains(widget.table.id)) {
+            widget.onTap();
+          }
         },
         onPanUpdate: (details) {
           if (_isConnectingDrag || _grabOffset == null) return;
           final canvasPoint = widget.globalToCanvas(details.globalPosition);
-          final newPos = canvasPoint - _grabOffset!;
-          canvasNotifier.updateTablePosition(widget.table.id, newPos);
+
+          // Se a tabela faz parte de multi-seleção, mover todas juntas por delta
+          if (canvasState.selectedTableIds.contains(widget.table.id)) {
+            if (_lastPanCanvasPoint != null) {
+              final delta = canvasPoint - _lastPanCanvasPoint!;
+              canvasNotifier.updateMultipleTablePositions(delta);
+            }
+            _lastPanCanvasPoint = canvasPoint;
+          } else {
+            final newPos = canvasPoint - _grabOffset!;
+            canvasNotifier.updateTablePosition(widget.table.id, newPos);
+          }
         },
         onPanEnd: (_) {
           _grabOffset = null;
+          _lastPanCanvasPoint = null;
         },
         onPanCancel: () {
           _grabOffset = null;
+          _lastPanCanvasPoint = null;
         },
         child: Material(
           elevation: widget.isSelected ? 8 : 4,

@@ -150,6 +150,30 @@ class HeaderToolbar extends ConsumerWidget {
 
                   const SizedBox(width: 8),
 
+                  // Botões Undo/Redo
+                  IconButton(
+                    tooltip: 'Desfazer (Ctrl+Z)',
+                    icon: const Icon(Icons.undo_rounded, size: 22),
+                    onPressed: canvasNotifier.canUndo
+                        ? () => canvasNotifier.undo()
+                        : null,
+                    color: canvasNotifier.canUndo
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
+                  IconButton(
+                    tooltip: 'Refazer (Ctrl+Shift+Z)',
+                    icon: const Icon(Icons.redo_rounded, size: 22),
+                    onPressed: canvasNotifier.canRedo
+                        ? () => canvasNotifier.redo()
+                        : null,
+                    color: canvasNotifier.canRedo
+                        ? Theme.of(context).colorScheme.onSurface
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                  ),
+
+                  const SizedBox(width: 8),
+
                   // Botão Novo Relacionamento
                   OutlinedButton.icon(
                     onPressed: canvasState.tables.length < 2
@@ -200,6 +224,52 @@ class HeaderToolbar extends ConsumerWidget {
                   ),
 
                   const SizedBox(width: 16),
+
+                  // Botão Deletar Selecionadas (aparece quando há seleção múltipla)
+                  if (canvasState.selectedTableIds.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final count = canvasState.selectedTableIds.length;
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Deletar Selecionadas'),
+                            content: Text(
+                              'Tem certeza que deseja remover $count tabela(s) selecionada(s) e seus relacionamentos?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('Cancelar'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  canvasNotifier.deleteSelectedTables();
+                                  Navigator.of(ctx).pop();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                ),
+                                child: const Text(
+                                  'Deletar',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: Text('Deletar (${canvasState.selectedTableIds.length})'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red, width: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
 
                   // Botão Limpar Canvas
                   IconButton(

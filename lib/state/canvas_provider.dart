@@ -13,6 +13,34 @@ final _uuid = const Uuid();
 class CanvasNotifier extends StateNotifier<CanvasState> {
   CanvasNotifier() : super(const CanvasState(tables: [], relationships: []));
 
+  // Undo/Redo history
+  final List<CanvasState> _undoStack = [];
+  final List<CanvasState> _redoStack = [];
+  static const int _maxHistorySize = 50;
+
+  bool get canUndo => _undoStack.isNotEmpty;
+  bool get canRedo => _redoStack.isNotEmpty;
+
+  void _saveToUndoStack() {
+    _undoStack.add(state);
+    if (_undoStack.length > _maxHistorySize) {
+      _undoStack.removeAt(0);
+    }
+    _redoStack.clear();
+  }
+
+  void undo() {
+    if (_undoStack.isEmpty) return;
+    _redoStack.add(state);
+    state = _undoStack.removeLast();
+  }
+
+  void redo() {
+    if (_redoStack.isEmpty) return;
+    _undoStack.add(state);
+    state = _redoStack.removeLast();
+  }
+
   void createSampleData() {
     final userIdColId = _uuid.v4();
     final orderIdColId = _uuid.v4();
@@ -116,15 +144,23 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     );
   }
 
-  void addTable({Offset position = const Offset(200, 200)}) {
+  void updateViewportCenter(Offset center) {
+    state = state.copyWith(viewportCenter: center);
+  }
+
+  void addTable({Offset? position}) {
+    _saveToUndoStack();
     final newId = _uuid.v4();
     final colId = _uuid.v4();
+
+    // Usar posição fornecida ou centro da viewport
+    final tablePosition = position ?? state.viewportCenter;
 
     final newTable = TableModel(
       id: newId,
       name: 'new_table_${state.tables.length + 1}',
       schema: 'public',
-      position: position,
+      position: tablePosition,
       columns: [
         ColumnModel(
           id: colId,
@@ -145,6 +181,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void updateTablePosition(String tableId, Offset newPosition) {
+    _saveToUndoStack();
     // Garantir que a posição da tabela nunca fique fora dos limites do Canvas (evitando perder o hit-test/seleção)
     final clampedX = newPosition.dx.clamp(0.0, 3740.0);
     final clampedY = newPosition.dy.clamp(0.0, 3600.0);
@@ -160,7 +197,8 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     );
   }
 
-  void updateTable(TableModel updatedTable) {
+  void updateTable(TableModel updatedTable, {bool saveToHistory = true}) {
+    if (saveToHistory) _saveToUndoStack();
     state = state.copyWith(
       tables: state.tables
           .map((t) => t.id == updatedTable.id ? updatedTable : t)
@@ -169,6 +207,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void deleteTable(String tableId) {
+    _saveToUndoStack();
     state = state.copyWith(
       tables: state.tables.where((t) => t.id != tableId).toList(),
       relationships: state.relationships
@@ -177,10 +216,14 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
           )
           .toList(),
       clearSelectedTable: state.selectedTableId == tableId,
+      selectedTableIds: state.selectedTableIds.contains(tableId)
+          ? (state.selectedTableIds..remove(tableId))
+          : null,
     );
   }
 
   void addColumn(String tableId) {
+    _saveToUndoStack();
     final colId = _uuid.v4();
     final newCol = ColumnModel(
       id: colId,
@@ -199,6 +242,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void updateColumn(String tableId, ColumnModel updatedColumn) {
+    _saveToUndoStack();
     state = state.copyWith(
       tables: state.tables.map((t) {
         if (t.id == tableId) {
@@ -213,6 +257,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void deleteColumn(String tableId, String columnId) {
+    _saveToUndoStack();
     state = state.copyWith(
       tables: state.tables.map((t) {
         if (t.id == tableId) {
@@ -245,6 +290,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void addRelationship(RelationshipModel newRel) {
+    _saveToUndoStack();
     final sourceTable = state.tables.firstWhere(
       (t) => t.id == newRel.sourceTableId,
       orElse: () =>
@@ -257,7 +303,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         }
         return c;
       }).toList();
-      updateTable(sourceTable.copyWith(columns: updatedCols));
+      updateTable(sourceTable.copyWith(columns: updatedCols), saveToHistory: false);
     }
 
     state = state.copyWith(
@@ -281,6 +327,8 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
       return;
     }
 
+    _saveToUndoStack();
+
     final newRel = RelationshipModel(
       id: _uuid.v4(),
       sourceTableId: sourceTableId,
@@ -299,7 +347,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
       return c;
     }).toList();
 
-    updateTable(sourceTable.copyWith(columns: updatedCols));
+    updateTable(sourceTable.copyWith(columns: updatedCols), saveToHistory: false);
 
     state = state.copyWith(
       relationships: [...state.relationships, newRel],
@@ -311,6 +359,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void updateRelationship(RelationshipModel updatedRel) {
+    _saveToUndoStack();
     state = state.copyWith(
       relationships: state.relationships
           .map((r) => r.id == updatedRel.id ? updatedRel : r)
@@ -319,6 +368,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void deleteRelationship(String relId) {
+    _saveToUndoStack();
     state = state.copyWith(
       relationships: state.relationships.where((r) => r.id != relId).toList(),
       clearSelectedRelationship: state.selectedRelationshipId == relId,
@@ -333,7 +383,52 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = state.copyWith(
       selectedTableId: tableId,
       clearSelectedTable: tableId == null,
+      clearSelectedTables: true,
       clearSelectedRelationship: true,
+    );
+  }
+
+  void selectMultipleTables(Set<String> ids) {
+    state = state.copyWith(
+      selectedTableIds: ids,
+      clearSelectedTable: true,
+      clearSelectedRelationship: true,
+    );
+  }
+
+  void clearSelection() {
+    state = state.copyWith(
+      clearSelectedTable: true,
+      clearSelectedTables: true,
+      clearSelectedRelationship: true,
+    );
+  }
+
+  void deleteSelectedTables() {
+    final ids = state.selectedTableIds;
+    if (ids.isEmpty) return;
+    _saveToUndoStack();
+    state = state.copyWith(
+      tables: state.tables.where((t) => !ids.contains(t.id)).toList(),
+      relationships: state.relationships
+          .where((r) => !ids.contains(r.sourceTableId) && !ids.contains(r.targetTableId))
+          .toList(),
+      clearSelectedTables: true,
+    );
+  }
+
+  void updateMultipleTablePositions(Offset delta) {
+    final ids = state.selectedTableIds;
+    if (ids.isEmpty) return;
+    state = state.copyWith(
+      tables: state.tables.map((t) {
+        if (ids.contains(t.id)) {
+          final clampedX = (t.position.dx + delta.dx).clamp(0.0, 3740.0);
+          final clampedY = (t.position.dy + delta.dy).clamp(0.0, 3600.0);
+          return t.copyWith(position: Offset(clampedX, clampedY));
+        }
+        return t;
+      }).toList(),
     );
   }
 
@@ -346,6 +441,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void clearCanvas() {
+    _saveToUndoStack();
     state = state.copyWith(
       tables: [],
       relationships: [],
@@ -368,6 +464,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     List<TableModel> tables,
     List<RelationshipModel> relationships,
   ) {
+    _saveToUndoStack();
     state = state.copyWith(
       tables: tables,
       relationships: relationships,
@@ -377,6 +474,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void importFromJson(Map<String, dynamic> json) {
+    _saveToUndoStack();
     final dialectCode = json['activeDialect'] as String? ?? 'postgresql';
     final dialect = SqlDialect.values.firstWhere(
       (d) => d.code == dialectCode,

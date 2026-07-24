@@ -7,11 +7,7 @@ import 'ui/screens/main_designer_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    const ProviderScope(
-      child: DbDiagramApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: DbDiagramApp()));
 }
 
 class DbDiagramApp extends ConsumerWidget {
