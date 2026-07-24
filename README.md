@@ -12,8 +12,8 @@ Um aplicativo Desktop moderno, veloz e elegante desenvolvido em **Flutter** para
 - **Arraste Preciso de Cards**: Arraste tabelas com bloqueio matricial de ponteiro (*pointer-locked drag*), sem saltos de posição.
 
 ### 📝 2. Edição Inline Direta nos Cards
-- **Nome da Tabela**: Dê **duplo clique** no cabeçalho do card para editar o nome da tabela diretamente.
-- **Colunas e Tipos**: Dê **duplo clique** em qualquer linha de coluna para alterar instantaneamente o nome, tipo de dado (ex: `VARCHAR`, `INT`, `NUMERIC`) e tamanho/precisão (ex: `255`, `10,2`).
+- **Nome da Tabela**: Dê um **clique** no cabeçalho do card para editar o nome da tabela diretamente.
+- **Colunas e Tipos**: Dê um **clique** em qualquer linha de coluna para alterar instantaneamente o nome, tipo de dado (ex: `VARCHAR`, `INT`, `NUMERIC`) e tamanho/precisão (ex: `255`, `10,2`).
 - **Badges Visuais**: Identificação de `PK` (Chave Primária), `FK` (Chave Estrangeira), `UQ` (Único), `NN` (Not Null) e `AUTO_INCREMENT`.
 
 ### 🔗 3. Criação e Gestão Interativa de Chaves Estrangeiras (FK)

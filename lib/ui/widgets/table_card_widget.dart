@@ -305,10 +305,9 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                               )
                             else
                               GestureDetector(
-                                onDoubleTap: _startEditingTableName,
+                                onTap: _startEditingTableName,
                                 child: Tooltip(
-                                  message:
-                                      'Duplo clique para editar nome da tabela',
+                                  message: 'Clique para editar nome da tabela',
                                   child: Text(
                                     widget.table.name,
                                     style: TextStyle(
@@ -567,13 +566,13 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                   selectedRel.targetColumnId == col.id));
 
                       return GestureDetector(
-                        onDoubleTap: () =>
+                        onTap: () =>
                             _startEditingColumn(col, availableDataTypes),
                         behavior: HitTestBehavior.opaque,
                         child: Tooltip(
                           message: isColRelatedToSelectedRel
                               ? 'Coluna vinculada ao relacionamento selecionado'
-                              : 'Duplo clique para editar nome e tipo',
+                              : 'Clique para editar nome e tipo',
                           waitDuration: const Duration(milliseconds: 300),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
