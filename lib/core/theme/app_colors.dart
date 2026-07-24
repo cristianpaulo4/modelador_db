@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 abstract class AppColors {
   // Light Mode Colors
-  static const Color lightCanvasBackground = Color(0xFFF8F9FA);
+  static const Color lightCanvasBackground = Color(0xFFFFFFFF);
+  static const Color lightOuterBackground = Color(0xFFE9ECEF);
   static const Color lightGridLine = Color(0xFFE2E8F0);
   static const Color lightTableHeader = Color(0xFFEDF2F7);
   static const Color lightTableCard = Color(0xFFFFFFFF);
@@ -11,7 +12,8 @@ abstract class AppColors {
   static const Color lightTextSecondary = Color(0xFF64748B);
 
   // Dark Mode Colors
-  static const Color darkCanvasBackground = Color(0xFF121212);
+  static const Color darkCanvasBackground = Color(0xFF1A1A1A);
+  static const Color darkOuterBackground = Color(0xFF0D0D0D);
   static const Color darkGridLine = Color(0xFF23272E);
   static const Color darkTableHeader = Color(0xFF1E222A);
   static const Color darkTableCard = Color(0xFF1E1E1E);

@@ -15,6 +15,8 @@ class TableCardWidget extends ConsumerStatefulWidget {
   final Function(String sourceColumnId, Offset globalPosition)? onConnectStart;
   final Function(Offset globalPosition)? onConnectUpdate;
   final Function(String sourceColumnId, Offset globalPosition)? onConnectEnd;
+  final VoidCallback? onDragStart;
+  final VoidCallback? onDragEnd;
 
   const TableCardWidget({
     super.key,
@@ -26,6 +28,8 @@ class TableCardWidget extends ConsumerStatefulWidget {
     this.onConnectStart,
     this.onConnectUpdate,
     this.onConnectEnd,
+    this.onDragStart,
+    this.onDragEnd,
   });
 
   @override
@@ -155,6 +159,8 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
           final canvasPoint = widget.globalToCanvas(details.globalPosition);
           _grabOffset = canvasPoint - widget.table.position;
           _lastPanCanvasPoint = canvasPoint;
+          // Notificar início do arraste
+          widget.onDragStart?.call();
           // Se a tabela faz parte de multi-seleção, não limpa a seleção
           if (!canvasState.selectedTableIds.contains(widget.table.id)) {
             widget.onTap();
@@ -179,10 +185,14 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
         onPanEnd: (_) {
           _grabOffset = null;
           _lastPanCanvasPoint = null;
+          // Notificar fim do arraste
+          widget.onDragEnd?.call();
         },
         onPanCancel: () {
           _grabOffset = null;
           _lastPanCanvasPoint = null;
+          // Notificar fim do arraste
+          widget.onDragEnd?.call();
         },
         child: Material(
           elevation: widget.isSelected ? 8 : 4,

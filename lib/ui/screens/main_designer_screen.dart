@@ -38,6 +38,9 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
   Offset? _marqueeEnd;
   bool _isMarqueeDragging = false;
 
+  // ID da tabela que está sendo arrastada (para colocar em primeiro plano)
+  String? _draggingTableId;
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +87,7 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
 
   void _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
+
     final canvasNotifier = ref.read(canvasProvider.notifier);
     final canvasState = ref.read(canvasProvider);
 
@@ -102,6 +106,30 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
         HardwareKeyboard.instance.isControlPressed) {
       final allIds = canvasState.tables.map((t) => t.id).toSet();
       canvasNotifier.selectMultipleTables(allIds);
+    }
+
+    // Ctrl+C - Copiar
+    if (event.logicalKey == LogicalKeyboardKey.keyC &&
+        HardwareKeyboard.instance.isControlPressed) {
+      canvasNotifier.copySelectedTables();
+    }
+
+    // Ctrl+X - Recortar
+    if (event.logicalKey == LogicalKeyboardKey.keyX &&
+        HardwareKeyboard.instance.isControlPressed) {
+      canvasNotifier.cutSelectedTables();
+    }
+
+    // Ctrl+V - Colar
+    if (event.logicalKey == LogicalKeyboardKey.keyV &&
+        HardwareKeyboard.instance.isControlPressed) {
+      canvasNotifier.pasteTables();
+    }
+
+    // Ctrl+D - Duplicar
+    if (event.logicalKey == LogicalKeyboardKey.keyD &&
+        HardwareKeyboard.instance.isControlPressed) {
+      canvasNotifier.duplicateSelectedTables();
     }
 
     // Ctrl+Z - Desfazer
@@ -124,6 +152,30 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       canvasNotifier.clearSelection();
     }
+  }
+
+  /// Verifica se o foco atual está em um campo de texto
+  bool _isFocusInTextField(FocusNode? focus) {
+    if (focus == null) return false;
+    if (focus.context == null) return false;
+
+    // Verificar se há um TextField ou TextFormField como ancestral
+    final hasTextField = focus.context!.findAncestorWidgetOfExactType<TextField>() != null;
+    final hasTextFormField = focus.context!.findAncestorWidgetOfExactType<TextFormField>() != null;
+
+    return hasTextField || hasTextFormField;
+  }
+
+  /// Retorna as tabelas ordenadas para renderização, colocando a tabela sendo arrastada por último
+  List<TableModel> _getOrderedTables(List<TableModel> tables) {
+    if (_draggingTableId == null) return tables;
+
+    // Separar a tabela sendo arrastada das outras
+    final draggingTable = tables.where((t) => t.id == _draggingTableId).toList();
+    final otherTables = tables.where((t) => t.id != _draggingTableId).toList();
+
+    // Retornar outras tabelas primeiro, depois a arrastada (em cima)
+    return [...otherTables, ...draggingTable];
   }
 
   Set<String> _getTablesInMarqueeRect(Rect marqueeRect, CanvasState state) {
@@ -465,9 +517,14 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final gridColor = isDark ? AppColors.darkGridLine : AppColors.lightGridLine;
+    // Fundo do canvas (área com grid)
     final canvasBg = isDark
         ? AppColors.darkCanvasBackground
         : AppColors.lightCanvasBackground;
+    // Fundo externo (área fora do canvas) - mais escuro que o canvas
+    final outerBg = isDark
+        ? AppColors.darkOuterBackground
+        : AppColors.lightOuterBackground;
     final lineColor = isDark ? AppColors.darkLine : AppColors.lightLine;
 
     // Calcular caixas delimitadoras (Rect) de cada tabela no espaço do canvas
@@ -483,11 +540,21 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     }
 
     return Scaffold(
-      backgroundColor: canvasBg,
-      body: KeyboardListener(
+      backgroundColor: outerBg,
+      body: Focus(
         focusNode: _focusNode,
         autofocus: true,
-        onKeyEvent: _handleKeyEvent,
+        onKeyEvent: (node, event) {
+          // Verificar se o foco está em um campo de texto
+          final currentFocus = WidgetsBinding.instance.focusManager.primaryFocus;
+          final isInTextField = _isFocusInTextField(currentFocus);
+
+          // Se estiver em campo de texto, ignorar para permitir edição
+          if (isInTextField) return KeyEventResult.ignored;
+
+          _handleKeyEvent(event);
+          return KeyEventResult.handled;
+        },
         child: Column(
           children: [
             // Header / Toolbar superior
@@ -543,12 +610,16 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
                           maxScale: 3.0,
                           boundaryMargin: const EdgeInsets.all(3000),
                           constrained: false,
-                          child: SizedBox(
+                          child: Container(
                             width: 4000,
                             height: 4000,
+                            color: canvasBg,
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTapUp: (details) {
+                                // Garantir foco para atalhos de teclado
+                                _focusNode.requestFocus();
+
                                 final canvasPoint =
                                     _globalToCanvas(details.globalPosition);
                                 final hitRel = _findRelationshipAt(
@@ -563,6 +634,9 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
                                 }
                               },
                               onPanStart: (details) {
+                                // Garantir foco para atalhos de teclado
+                                _focusNode.requestFocus();
+
                                 // Verificar se clicou em uma tabela
                                 final canvasPoint =
                                     _globalToCanvas(details.globalPosition);
@@ -683,7 +757,8 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
                                   ),
 
                                   // Renderização das Tabelas Móveis
-                                  ...canvasState.tables.map((t) {
+                                  // Reordenar para que a tabela sendo arrastada fique por último (em cima)
+                                  ..._getOrderedTables(canvasState.tables).map((t) {
                                     final isSelected =
                                         t.id == canvasState.selectedTableId ||
                                         canvasState.selectedTableIds
@@ -702,6 +777,16 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
                                           _onConnectUpdate(pos),
                                       onConnectEnd: (colId, pos) =>
                                           _onConnectEnd(t.id, colId, pos),
+                                      onDragStart: () {
+                                        setState(() {
+                                          _draggingTableId = t.id;
+                                        });
+                                      },
+                                      onDragEnd: () {
+                                        setState(() {
+                                          _draggingTableId = null;
+                                        });
+                                      },
                                       onTap: () {
                                         if (canvasState.isConnectingMode) {
                                           if (canvasState

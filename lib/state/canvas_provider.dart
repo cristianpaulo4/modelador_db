@@ -41,6 +41,211 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = _redoStack.removeLast();
   }
 
+  // Clipboard para Copy/Paste/Cut
+  List<TableModel> _clipboardTables = [];
+  List<RelationshipModel> _clipboardRelationships = [];
+  bool _isCutOperation = false;
+
+  bool get hasClipboard => _clipboardTables.isNotEmpty;
+
+  /// Copia as tabelas selecionadas para o clipboard
+  void copySelectedTables() {
+    // Verificar tanto selectedTableId (seleção única) quanto selectedTableIds (seleção múltipla)
+    final selectedIds = <String>{};
+    if (state.selectedTableId != null) {
+      selectedIds.add(state.selectedTableId!);
+    }
+    selectedIds.addAll(state.selectedTableIds);
+
+    if (selectedIds.isEmpty) return;
+
+    _clipboardTables = state.tables
+        .where((t) => selectedIds.contains(t.id))
+        .toList();
+    _clipboardRelationships = state.relationships
+        .where((r) =>
+            selectedIds.contains(r.sourceTableId) &&
+            selectedIds.contains(r.targetTableId))
+        .toList();
+    _isCutOperation = false;
+  }
+
+  /// Recorta as tabelas selecionadas (copia + deleta)
+  void cutSelectedTables() {
+    // Verificar tanto selectedTableId quanto selectedTableIds
+    final selectedIds = <String>{};
+    if (state.selectedTableId != null) {
+      selectedIds.add(state.selectedTableId!);
+    }
+    selectedIds.addAll(state.selectedTableIds);
+
+    if (selectedIds.isEmpty) return;
+
+    copySelectedTables();
+    _isCutOperation = true;
+
+    // Deletar tabelas selecionadas
+    _saveToUndoStack();
+    state = state.copyWith(
+      tables: state.tables.where((t) => !selectedIds.contains(t.id)).toList(),
+      relationships: state.relationships
+          .where((r) =>
+              !selectedIds.contains(r.sourceTableId) &&
+              !selectedIds.contains(r.targetTableId))
+          .toList(),
+      clearSelectedTable: true,
+      clearSelectedTables: true,
+    );
+  }
+
+  /// Cola as tabelas do clipboard no canvas
+  void pasteTables({Offset? position}) {
+    if (_clipboardTables.isEmpty) return;
+    _saveToUndoStack();
+
+    // Criar mapeamento de IDs antigos para novos
+    final idMapping = <String, String>{};
+    for (final table in _clipboardTables) {
+      idMapping[table.id] = _uuid.v4();
+    }
+
+    // Calcular offset baseado no centro da viewport ou posição fornecida
+    final pastePosition = position ?? state.viewportCenter;
+
+    // Calcular centro das tabelas copiadas
+    double minX = double.infinity, minY = double.infinity;
+    double maxX = double.negativeInfinity, maxY = double.negativeInfinity;
+    for (final table in _clipboardTables) {
+      minX = minX < table.position.dx ? minX : table.position.dx;
+      minY = minY < table.position.dy ? minY : table.position.dy;
+      maxX = maxX > table.position.dx ? maxX : table.position.dx;
+      maxY = maxY > table.position.dy ? maxY : table.position.dy;
+    }
+    final centerOfCopied = Offset(
+      (minX + maxX) / 2,
+      (minY + maxY) / 2,
+    );
+
+    // Offset para mover as tabelas para a posição de cola
+    final offset = pastePosition - centerOfCopied;
+
+    // Criar novas tabelas com IDs novos e posições offsetadas
+    final newTables = _clipboardTables.map((table) {
+      final newId = idMapping[table.id]!;
+      final newPosition = table.position + offset;
+
+      // Mapear colunas (manter IDs para preservar relações internas)
+      final newColumns = table.columns.map((col) {
+        return col;
+      }).toList();
+
+      return table.copyWith(
+        id: newId,
+        name: '${table.name}_copy',
+        position: newPosition,
+        columns: newColumns,
+      );
+    }).toList();
+
+    // Criar novos relacionamentos com IDs de tabelas atualizados
+    final newRelationships = _clipboardRelationships.map((rel) {
+      final newSourceId = idMapping[rel.sourceTableId] ?? rel.sourceTableId;
+      final newTargetId = idMapping[rel.targetTableId] ?? rel.targetTableId;
+      return rel.copyWith(
+        id: _uuid.v4(),
+        sourceTableId: newSourceId,
+        targetTableId: newTargetId,
+      );
+    }).toList();
+
+    // Adicionar ao canvas
+    state = state.copyWith(
+      tables: [...state.tables, ...newTables],
+      relationships: [...state.relationships, ...newRelationships],
+      selectedTableIds: newTables.map((t) => t.id).toSet(),
+      clearSelectedTable: true,
+    );
+
+    // Se era operação de cut, limpar clipboard
+    if (_isCutOperation) {
+      _clipboardTables = [];
+      _clipboardRelationships = [];
+      _isCutOperation = false;
+    }
+  }
+
+  /// Duplica as tabelas selecionadas (atalho mais rápido que copy+paste)
+  void duplicateSelectedTables() {
+    // Verificar tanto selectedTableId quanto selectedTableIds
+    final selectedIds = <String>{};
+    if (state.selectedTableId != null) {
+      selectedIds.add(state.selectedTableId!);
+    }
+    selectedIds.addAll(state.selectedTableIds);
+
+    if (selectedIds.isEmpty) return;
+
+    // Copiar seleção atual para clipboard temporário
+    final tempClipboard = _clipboardTables;
+    final tempRelClipboard = _clipboardRelationships;
+    final tempIsCut = _isCutOperation;
+
+    // Copiar sem afetar clipboard principal
+    _clipboardTables = state.tables
+        .where((t) => selectedIds.contains(t.id))
+        .toList();
+    _clipboardRelationships = state.relationships
+        .where((r) =>
+            selectedIds.contains(r.sourceTableId) &&
+            selectedIds.contains(r.targetTableId))
+        .toList();
+    _isCutOperation = false;
+
+    // Colar com offset para não sobrepor
+    _saveToUndoStack();
+
+    final idMapping = <String, String>{};
+    for (final table in _clipboardTables) {
+      idMapping[table.id] = _uuid.v4();
+    }
+
+    // Offset de 30px para baixo e direita
+    const duplicateOffset = Offset(30, 30);
+
+    final newTables = _clipboardTables.map((table) {
+      final newId = idMapping[table.id]!;
+      final newPosition = table.position + duplicateOffset;
+
+      return table.copyWith(
+        id: newId,
+        name: '${table.name}_copy',
+        position: newPosition,
+      );
+    }).toList();
+
+    final newRelationships = _clipboardRelationships.map((rel) {
+      final newSourceId = idMapping[rel.sourceTableId] ?? rel.sourceTableId;
+      final newTargetId = idMapping[rel.targetTableId] ?? rel.targetTableId;
+      return rel.copyWith(
+        id: _uuid.v4(),
+        sourceTableId: newSourceId,
+        targetTableId: newTargetId,
+      );
+    }).toList();
+
+    state = state.copyWith(
+      tables: [...state.tables, ...newTables],
+      relationships: [...state.relationships, ...newRelationships],
+      selectedTableIds: newTables.map((t) => t.id).toSet(),
+      clearSelectedTable: true,
+    );
+
+    // Restaurar clipboard original
+    _clipboardTables = tempClipboard;
+    _clipboardRelationships = tempRelClipboard;
+    _isCutOperation = tempIsCut;
+  }
+
   void createSampleData() {
     final userIdColId = _uuid.v4();
     final orderIdColId = _uuid.v4();
