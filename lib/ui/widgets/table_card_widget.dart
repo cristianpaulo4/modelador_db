@@ -674,6 +674,8 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                       ),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
+                                          dropdownColor:
+                                              theme.colorScheme.surface,
                                           value:
                                               availableDataTypes.contains(
                                                 _selectedDataType,
@@ -701,8 +703,11 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                               value: type,
                                               child: Text(
                                                 type,
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 11,
+                                                  color: theme
+                                                      .colorScheme
+                                                      .onSurface,
                                                 ),
                                               ),
                                             );
