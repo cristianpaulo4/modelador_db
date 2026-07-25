@@ -63,49 +63,16 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     _tableNameController = TextEditingController();
     _colNameFocusNode = FocusNode();
     _tableNameFocusNode = FocusNode();
-    _colNameFocusNode.addListener(_onColNameFocusChanged);
-    _tableNameFocusNode.addListener(_onTableNameFocusChanged);
   }
 
   @override
   void dispose() {
-    _colNameFocusNode.removeListener(_onColNameFocusChanged);
-    _tableNameFocusNode.removeListener(_onTableNameFocusChanged);
     _colNameController.dispose();
     _lengthController.dispose();
     _tableNameController.dispose();
     _colNameFocusNode.dispose();
     _tableNameFocusNode.dispose();
     super.dispose();
-  }
-
-  void _onColNameFocusChanged() {
-    if (!_colNameFocusNode.hasFocus && _editingColumnId != null) {
-      final targetColId = _editingColumnId;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted ||
-            _editingColumnId != targetColId ||
-            _colNameFocusNode.hasFocus)
-          return;
-        final col = widget.table.columns.firstWhere(
-          (c) => c.id == targetColId,
-          orElse: () => ColumnModel(id: '', name: '', dataType: ''),
-        );
-        if (col.id.isNotEmpty) {
-          _saveColumnEdit(widget.table.id, col);
-        }
-      });
-    }
-  }
-
-  void _onTableNameFocusChanged() {
-    if (!_tableNameFocusNode.hasFocus && _isEditingTableName) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_isEditingTableName || _tableNameFocusNode.hasFocus)
-          return;
-        _saveTableNameEdit();
-      });
-    }
   }
 
   @override
