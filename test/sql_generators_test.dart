@@ -88,6 +88,8 @@ void main() {
 
       expect(ddl, contains('CREATE TABLE IF NOT EXISTS "users"'));
       expect(ddl, contains('PRAGMA foreign_keys = ON;'));
+      expect(ddl, isNot(contains('ALTER TABLE')));
+      expect(ddl, contains('CREATE UNIQUE INDEX IF NOT EXISTS'));
     });
 
     test('SQL Server Generator produces valid DDL', () {

@@ -66,10 +66,10 @@ class SqliteGenerator implements SqlDialectGenerator {
     buffer.writeln('PRAGMA foreign_keys = ON;');
     buffer.writeln();
 
-    // Primeiro, garantir UNIQUE nas colunas referenciadas que precisam
-    // Na UI: arrastar de A para B significa "B referencia A"
-    // Então: refTable = source (tem a PK), fkTable = target (tem a FK)
-    final uniqueConstraints = <String>[];
+    // No SQLite, ALTER TABLE ADD CONSTRAINT não é suportado.
+    // Para garantir unicidade em colunas referenciadas para FKs que não são PK/Unique,
+    // devemos usar CREATE UNIQUE INDEX após a criação das tabelas.
+    final uniqueIndexes = <String>[];
     for (final rel in relationships) {
       final refTable = tables.firstWhere(
         (t) => t.id == rel.sourceTableId,
@@ -81,18 +81,10 @@ class SqliteGenerator implements SqlDialectGenerator {
       );
 
       if (!refCol.isPrimaryKey && !refCol.isUnique) {
-        uniqueConstraints.add(
-          'ALTER TABLE "${refTable.name}" ADD CONSTRAINT "uq_${refTable.name}_${refCol.name}" UNIQUE ("${refCol.name}");',
+        uniqueIndexes.add(
+          'CREATE UNIQUE INDEX IF NOT EXISTS "idx_uq_${refTable.name}_${refCol.name}" ON "${refTable.name}" ("${refCol.name}");',
         );
       }
-    }
-
-    if (uniqueConstraints.isNotEmpty) {
-      buffer.writeln('-- Garantir UNIQUE nas colunas referenciadas para FKs');
-      for (final constraint in uniqueConstraints) {
-        buffer.writeln(constraint);
-      }
-      buffer.writeln();
     }
 
     // Ordenar tabelas por dependência
@@ -101,10 +93,18 @@ class SqliteGenerator implements SqlDialectGenerator {
     for (final table in sortedTables) {
       buffer.writeln('CREATE TABLE IF NOT EXISTS "${table.name}" (');
       final colDefs = <String>[];
+      final pks = table.primaryKeys;
+      final isCompositePk = pks.length > 1;
 
       for (final col in table.columns) {
-        var def = '  "${col.name}" ${col.dataType}';
-        if (col.isPrimaryKey) {
+        var dataType = col.dataType;
+        // No SQLite, AUTOINCREMENT só é permitido em coluna INTEGER PRIMARY KEY
+        if (!isCompositePk && col.isPrimaryKey && col.isAutoIncrement && dataType.toUpperCase() != 'INTEGER') {
+          dataType = 'INTEGER';
+        }
+
+        var def = '  "${col.name}" $dataType';
+        if (col.isPrimaryKey && !isCompositePk) {
           def += ' PRIMARY KEY';
           if (col.isAutoIncrement) {
             def += ' AUTOINCREMENT';
@@ -113,13 +113,22 @@ class SqliteGenerator implements SqlDialectGenerator {
         if (col.isNotNull) {
           def += ' NOT NULL';
         }
-        if (col.isUnique && !col.isPrimaryKey) {
+        if (col.isUnique && (!col.isPrimaryKey || isCompositePk)) {
           def += ' UNIQUE';
         }
         if (col.defaultValue != null && col.defaultValue!.isNotEmpty) {
-          def += ' DEFAULT ${col.defaultValue}';
+          var defaultVal = col.defaultValue!.trim();
+          if (defaultVal.toLowerCase() == 'now()' || defaultVal.toLowerCase() == 'now') {
+            defaultVal = 'CURRENT_TIMESTAMP';
+          }
+          def += ' DEFAULT $defaultVal';
         }
         colDefs.add(def);
+      }
+
+      if (isCompositePk) {
+        final pkCols = pks.map((c) => '"${c.name}"').join(', ');
+        colDefs.add('  PRIMARY KEY ($pkCols)');
       }
 
       // Foreign Keys inline no SQLite
@@ -146,6 +155,14 @@ class SqliteGenerator implements SqlDialectGenerator {
 
       buffer.writeln(colDefs.join(',\n'));
       buffer.writeln(');');
+      buffer.writeln();
+    }
+
+    if (uniqueIndexes.isNotEmpty) {
+      buffer.writeln('-- Garantir UNIQUE nas colunas referenciadas para FKs');
+      for (final idx in uniqueIndexes) {
+        buffer.writeln(idx);
+      }
       buffer.writeln();
     }
 

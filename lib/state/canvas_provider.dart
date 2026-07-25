@@ -266,10 +266,10 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         ColumnModel(
           id: userIdColId,
           name: 'id',
-          dataType: 'INT4',
+          dataType: state.activeDialect.idDataType,
           isPrimaryKey: true,
           isNotNull: true,
-          isAutoIncrement: true,
+          isAutoIncrement: state.activeDialect.idIsAutoIncrement,
         ),
         const ColumnModel(
           id: 'col_name',
@@ -304,17 +304,18 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         ColumnModel(
           id: orderIdColId,
           name: 'id',
-          dataType: 'INT4',
+          dataType: state.activeDialect.idDataType,
           isPrimaryKey: true,
           isNotNull: true,
-          isAutoIncrement: true,
+          isAutoIncrement: state.activeDialect.idIsAutoIncrement,
         ),
         ColumnModel(
           id: orderUserIdColId,
           name: 'user_id',
-          dataType: 'INT4',
+          dataType: state.activeDialect.idDataType,
           isForeignKey: true,
           isNotNull: true,
+          isAutoIncrement: false,
         ),
         const ColumnModel(
           id: 'col_total',
@@ -375,22 +376,23 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         ColumnModel(
           id: colId,
           name: 'id',
-          dataType: state.activeDialect.uuidType,
+          dataType: state.activeDialect.idDataType,
           isPrimaryKey: true,
           isNotNull: true,
+          isAutoIncrement: state.activeDialect.idIsAutoIncrement,
         ),
         ColumnModel(
           id: createAtId,
           name: 'create_at',
           dataType: state.activeDialect.timestampType,
-          defaultValue: 'now()',
+          defaultValue: 'CURRENT_TIMESTAMP',
           isNotNull: true,
         ),
         ColumnModel(
           id: updateAtId,
           name: 'update_at',
           dataType: state.activeDialect.timestampType,
-          defaultValue: 'now()',
+          defaultValue: 'CURRENT_TIMESTAMP',
           isNotNull: true,
         ),
       ],
@@ -605,7 +607,20 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
   }
 
   void setDialect(SqlDialect dialect) {
-    state = state.copyWith(activeDialect: dialect);
+    if (state.activeDialect == dialect) return;
+    _saveToUndoStack();
+
+    final updatedTables = state.tables.map((table) {
+      final updatedColumns = table.columns.map((col) {
+        return dialect.mapColumn(col);
+      }).toList();
+      return table.copyWith(columns: updatedColumns);
+    }).toList();
+
+    state = state.copyWith(
+      activeDialect: dialect,
+      tables: updatedTables,
+    );
   }
 
   void selectTable(String? tableId) {
@@ -695,12 +710,14 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
 
   void importDdlResult(
     List<TableModel> tables,
-    List<RelationshipModel> relationships,
-  ) {
+    List<RelationshipModel> relationships, {
+    SqlDialect? dialect,
+  }) {
     _saveToUndoStack();
     state = state.copyWith(
       tables: tables,
       relationships: relationships,
+      activeDialect: dialect ?? state.activeDialect,
       clearSelectedTable: true,
       clearSelectedRelationship: true,
     );

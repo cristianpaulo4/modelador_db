@@ -56,10 +56,11 @@ class _SchemasSidebarState extends ConsumerState<SchemasSidebar> {
     final canvasNotifier = ref.read(canvasProvider.notifier);
 
     final count = ref.read(schemasProvider).schemas.length + 1;
-    schemasNotifier.createSchema('Esquema $count');
+    final newSchema = schemasNotifier.createSchema('Esquema $count');
 
-    // Carregar canvas limpo para o novo esquema
+    // Carregar canvas limpo para o novo esquema e setar o dialeto
     canvasNotifier.clearCanvas();
+    canvasNotifier.setDialect(newSchema.activeDialect);
   }
 
   void _confirmDelete(ProjectSchemaModel schema) {
@@ -89,6 +90,7 @@ class _SchemasSidebarState extends ConsumerState<SchemasSidebar> {
                     .importDdlResult(
                       activeSchema.tables,
                       activeSchema.relationships,
+                      dialect: activeSchema.activeDialect,
                     );
               }
             },
@@ -104,7 +106,11 @@ class _SchemasSidebarState extends ConsumerState<SchemasSidebar> {
     final canvasNotifier = ref.read(canvasProvider.notifier);
 
     schemasNotifier.selectSchema(schema.id);
-    canvasNotifier.importDdlResult(schema.tables, schema.relationships);
+    canvasNotifier.importDdlResult(
+      schema.tables,
+      schema.relationships,
+      dialect: schema.activeDialect,
+    );
 
     // Notificar que o schema foi alterado (para centralizar o canvas)
     WidgetsBinding.instance.addPostFrameCallback((_) {

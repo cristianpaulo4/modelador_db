@@ -62,16 +62,19 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
       canvasNotifier.importDdlResult(
         activeSchema.tables,
         activeSchema.relationships,
+        dialect: activeSchema.activeDialect,
       );
     } else if (activeSchema != null && activeSchema.tables.isEmpty) {
       // Esquema vazio (novo) — criar dados de exemplo e salvar
       canvasNotifier.createSampleData();
+      canvasNotifier.setDialect(activeSchema.activeDialect);
       ref
           .read(schemasProvider.notifier)
           .updateActiveSchemaData(
             activeSchema.copyWith(
               tables: ref.read(canvasProvider).tables,
               relationships: ref.read(canvasProvider).relationships,
+              activeDialect: activeSchema.activeDialect,
             ),
           );
     }
