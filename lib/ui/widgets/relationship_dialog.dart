@@ -41,9 +41,8 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
   void initState() {
     super.initState();
     final rel = widget.existingRelationship;
-    _selectedTargetColumnId = rel?.targetColumnId ??
-        widget.initialTargetColumnId ??
-        createNewFkKey;
+    _selectedTargetColumnId =
+        rel?.targetColumnId ?? widget.initialTargetColumnId ?? createNewFkKey;
     _selectedCardinality = rel?.cardinality ?? CardinalityType.oneToMany;
     _selectedOnDelete = rel?.onDelete ?? ReferentialAction.noAction;
     _selectedOnUpdate = rel?.onUpdate ?? ReferentialAction.noAction;
@@ -55,16 +54,27 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
 
     final sourceTable = canvasState.tables.firstWhere(
       (t) => t.id == widget.sourceTableId,
-      orElse: () => TableModel(id: '', name: 'Tabela', position: Offset.zero, columns: []),
+      orElse: () => TableModel(
+        id: '',
+        name: 'Tabela',
+        position: Offset.zero,
+        columns: [],
+      ),
     );
     final targetTable = canvasState.tables.firstWhere(
       (t) => t.id == widget.targetTableId,
-      orElse: () => TableModel(id: '', name: 'Tabela', position: Offset.zero, columns: []),
+      orElse: () => TableModel(
+        id: '',
+        name: 'Tabela',
+        position: Offset.zero,
+        columns: [],
+      ),
     );
 
     final sourceCol = sourceTable.columns.firstWhere(
       (c) => c.id == widget.sourceColumnId,
-      orElse: () => ColumnModel(id: widget.sourceColumnId, name: 'id', dataType: 'INT4'),
+      orElse: () =>
+          ColumnModel(id: widget.sourceColumnId, name: 'id', dataType: 'INT4'),
     );
 
     String finalTargetColumnId = _selectedTargetColumnId;
@@ -82,7 +92,9 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
       );
 
       final updatedTargetCols = [...targetTable.columns, newCol];
-      canvasNotifier.updateTable(targetTable.copyWith(columns: updatedTargetCols));
+      canvasNotifier.updateTable(
+        targetTable.copyWith(columns: updatedTargetCols),
+      );
       finalTargetColumnId = newColId;
     }
 
@@ -130,16 +142,30 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
 
     final sourceTable = canvasState.tables.firstWhere(
       (t) => t.id == widget.sourceTableId,
-      orElse: () => TableModel(id: '', name: 'Origem', position: Offset.zero, columns: []),
+      orElse: () => TableModel(
+        id: '',
+        name: 'Origem',
+        position: Offset.zero,
+        columns: [],
+      ),
     );
     final targetTable = canvasState.tables.firstWhere(
       (t) => t.id == widget.targetTableId,
-      orElse: () => TableModel(id: '', name: 'Destino', position: Offset.zero, columns: []),
+      orElse: () => TableModel(
+        id: '',
+        name: 'Destino',
+        position: Offset.zero,
+        columns: [],
+      ),
     );
 
     final sourceCol = sourceTable.columns.firstWhere(
       (c) => c.id == widget.sourceColumnId,
-      orElse: () => ColumnModel(id: widget.sourceColumnId, name: 'coluna', dataType: 'INT4'),
+      orElse: () => ColumnModel(
+        id: widget.sourceColumnId,
+        name: 'coluna',
+        dataType: 'INT4',
+      ),
     );
 
     // Verificar se há incompatibilidade de tipo
@@ -163,7 +189,11 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
         children: [
           Icon(Icons.alt_route_rounded, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
-          Text(isEditing ? 'Editar Relacionamento (FK)' : 'Novo Relacionamento (FK)'),
+          Text(
+            isEditing
+                ? 'Editar Relacionamento (FK)'
+                : 'Novo Relacionamento (FK)',
+          ),
         ],
       ),
       content: SingleChildScrollView(
@@ -177,7 +207,9 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
               decoration: BoxDecoration(
                 color: theme.colorScheme.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
@@ -185,21 +217,57 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('ORIGEM', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                        Text(
+                          'ORIGEM',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text('${sourceTable.name}.${sourceCol.name}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        Text(sourceCol.dataType, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        Text(
+                          '${sourceTable.name}.${sourceCol.name}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          sourceCol.dataType,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_rounded, color: Colors.grey, size: 20),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('DESTINO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                        Text(
+                          'DESTINO',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                         const SizedBox(height: 2),
-                        Text(targetTable.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(
+                          targetTable.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -210,31 +278,55 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
             const SizedBox(height: 16),
 
             // Seleção de Coluna de Destino (Existente ou Criar Nova)
-            Text('Coluna de Destino na tabela ${targetTable.name}', style: theme.textTheme.labelMedium),
+            Text(
+              'Coluna de Destino na tabela ${targetTable.name}',
+              style: theme.textTheme.labelMedium,
+            ),
             const SizedBox(height: 6),
             SizedBox(
               width: double.infinity,
               child: DropdownButtonFormField<String>(
-                initialValue: targetTable.columns.any((c) => c.id == _selectedTargetColumnId) || _selectedTargetColumnId == createNewFkKey
+                dropdownColor: theme.colorScheme.surface,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurface,
+                ),
+                initialValue:
+                    targetTable.columns.any(
+                          (c) => c.id == _selectedTargetColumnId,
+                        ) ||
+                        _selectedTargetColumnId == createNewFkKey
                     ? _selectedTargetColumnId
                     : createNewFkKey,
                 decoration: InputDecoration(
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                   border: const OutlineInputBorder(),
                   enabledBorder: hasTypeMismatch
                       ? OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                          borderSide: const BorderSide(
+                            color: Colors.red,
+                            width: 2,
+                          ),
                         )
                       : null,
                   focusedBorder: hasTypeMismatch
                       ? OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                          borderSide: const BorderSide(
+                            color: Colors.red,
+                            width: 2,
+                          ),
                         )
                       : null,
                   errorBorder: hasTypeMismatch
                       ? OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.red, width: 2),
+                          borderSide: const BorderSide(
+                            color: Colors.red,
+                            width: 2,
+                          ),
                         )
                       : null,
                 ),
@@ -244,11 +336,19 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.green),
+                        const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 16,
+                          color: Colors.green,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '+ Nova coluna',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
                         ),
                       ],
                     ),
@@ -265,7 +365,9 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                               '${c.name} (${c.dataType})',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isTypeWrong ? Colors.red : null,
+                                color: isTypeWrong
+                                    ? Colors.red
+                                    : theme.colorScheme.onSurface,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -273,7 +375,11 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                           if (isTypeWrong)
                             const Padding(
                               padding: EdgeInsets.only(left: 4),
-                              child: Icon(Icons.warning_rounded, size: 16, color: Colors.red),
+                              child: Icon(
+                                Icons.warning_rounded,
+                                size: 16,
+                                color: Colors.red,
+                              ),
                             ),
                         ],
                       ),
@@ -300,7 +406,11 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: Colors.red,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -324,9 +434,18 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
               children: CardinalityType.values.map((card) {
                 final isSelected = _selectedCardinality == card;
                 return ChoiceChip(
-                  label: Text(card.label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                  label: Text(
+                    card.label,
+                    style: TextStyle(
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
                   selected: isSelected,
-                  selectedColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  selectedColor: theme.colorScheme.primary.withValues(
+                    alpha: 0.2,
+                  ),
                   onSelected: (selected) {
                     if (selected) {
                       setState(() => _selectedCardinality = card);
@@ -349,16 +468,29 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                       const SizedBox(height: 4),
                       DropdownButtonFormField<ReferentialAction>(
                         initialValue: _selectedOnDelete,
+                        dropdownColor: theme.colorScheme.surface,
                         decoration: const InputDecoration(
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
                           border: OutlineInputBorder(),
                         ),
-                        style: const TextStyle(fontSize: 11),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurface,
+                        ),
                         items: ReferentialAction.values.map((act) {
                           return DropdownMenuItem(
                             value: act,
-                            child: Text(act.sqlKeyword, style: const TextStyle(fontSize: 11)),
+                            child: Text(
+                              act.sqlKeyword,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -379,16 +511,29 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
                       const SizedBox(height: 4),
                       DropdownButtonFormField<ReferentialAction>(
                         initialValue: _selectedOnUpdate,
+                        dropdownColor: theme.colorScheme.surface,
                         decoration: const InputDecoration(
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
                           border: OutlineInputBorder(),
                         ),
-                        style: const TextStyle(fontSize: 11),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurface,
+                        ),
                         items: ReferentialAction.values.map((act) {
                           return DropdownMenuItem(
                             value: act,
-                            child: Text(act.sqlKeyword, style: const TextStyle(fontSize: 11)),
+                            child: Text(
+                              act.sqlKeyword,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -410,7 +555,10 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
           TextButton.icon(
             onPressed: _onDeleteRelationship,
             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-            label: const Text('Remover FK', style: TextStyle(color: Colors.red)),
+            label: const Text(
+              'Remover FK',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -421,7 +569,9 @@ class _RelationshipDialogState extends ConsumerState<RelationshipDialog> {
           icon: const Icon(Icons.check_rounded, size: 18),
           label: Text(isEditing ? 'Salvar Alterações' : 'Criar Relacionamento'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: hasTypeMismatch ? Colors.grey : theme.colorScheme.primary,
+            backgroundColor: hasTypeMismatch
+                ? Colors.grey
+                : theme.colorScheme.primary,
             foregroundColor: Colors.white,
           ),
         ),
