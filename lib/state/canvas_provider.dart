@@ -600,8 +600,80 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
 
   void deleteRelationship(String relId) {
     _saveToUndoStack();
+
+    final rel = state.relationships.where((r) => r.id == relId).firstOrNull;
+    String? fkTableId;
+    String? fkColumnId;
+
+    if (rel != null) {
+      final sourceTable =
+          state.tables.where((t) => t.id == rel.sourceTableId).firstOrNull;
+      final targetTable =
+          state.tables.where((t) => t.id == rel.targetTableId).firstOrNull;
+      final sourceCol = sourceTable?.columns
+          .where((c) => c.id == rel.sourceColumnId)
+          .firstOrNull;
+      final targetCol = targetTable?.columns
+          .where((c) => c.id == rel.targetColumnId)
+          .firstOrNull;
+
+      if (targetCol != null &&
+          targetCol.isForeignKey &&
+          !targetCol.isPrimaryKey) {
+        fkTableId = targetTable!.id;
+        fkColumnId = targetCol.id;
+      } else if (sourceCol != null &&
+          sourceCol.isForeignKey &&
+          !sourceCol.isPrimaryKey) {
+        fkTableId = sourceTable!.id;
+        fkColumnId = sourceCol.id;
+      } else if (targetCol != null &&
+          !targetCol.isPrimaryKey &&
+          sourceCol != null &&
+          sourceCol.isPrimaryKey) {
+        fkTableId = targetTable!.id;
+        fkColumnId = targetCol.id;
+      } else if (sourceCol != null &&
+          !sourceCol.isPrimaryKey &&
+          targetCol != null &&
+          targetCol.isPrimaryKey) {
+        fkTableId = sourceTable!.id;
+        fkColumnId = sourceCol.id;
+      } else if (targetCol != null && targetCol.isForeignKey) {
+        fkTableId = targetTable!.id;
+        fkColumnId = targetCol.id;
+      } else if (sourceCol != null && sourceCol.isForeignKey) {
+        fkTableId = sourceTable!.id;
+        fkColumnId = sourceCol.id;
+      }
+
+      if (fkColumnId != null) {
+        final isUsedByOtherRel = state.relationships.any(
+          (r) =>
+              r.id != relId &&
+              (r.sourceColumnId == fkColumnId || r.targetColumnId == fkColumnId),
+        );
+        if (isUsedByOtherRel) {
+          fkTableId = null;
+          fkColumnId = null;
+        }
+      }
+    }
+
+    final updatedTables = fkTableId != null && fkColumnId != null
+        ? state.tables.map((t) {
+            if (t.id == fkTableId) {
+              return t.copyWith(
+                columns: t.columns.where((c) => c.id != fkColumnId).toList(),
+              );
+            }
+            return t;
+          }).toList()
+        : state.tables;
+
     state = state.copyWith(
       relationships: state.relationships.where((r) => r.id != relId).toList(),
+      tables: updatedTables,
       clearSelectedRelationship: state.selectedRelationshipId == relId,
     );
   }
