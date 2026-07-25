@@ -66,12 +66,14 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     } else if (activeSchema != null && activeSchema.tables.isEmpty) {
       // Esquema vazio (novo) — criar dados de exemplo e salvar
       canvasNotifier.createSampleData();
-      ref.read(schemasProvider.notifier).updateActiveSchemaData(
-        activeSchema.copyWith(
-          tables: ref.read(canvasProvider).tables,
-          relationships: ref.read(canvasProvider).relationships,
-        ),
-      );
+      ref
+          .read(schemasProvider.notifier)
+          .updateActiveSchemaData(
+            activeSchema.copyWith(
+              tables: ref.read(canvasProvider).tables,
+              relationships: ref.read(canvasProvider).relationships,
+            ),
+          );
     }
 
     _initialSchemaLoaded = true;
@@ -166,8 +168,10 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     if (focus.context == null) return false;
 
     // Verificar se há um TextField ou TextFormField como ancestral
-    final hasTextField = focus.context!.findAncestorWidgetOfExactType<TextField>() != null;
-    final hasTextFormField = focus.context!.findAncestorWidgetOfExactType<TextFormField>() != null;
+    final hasTextField =
+        focus.context!.findAncestorWidgetOfExactType<TextField>() != null;
+    final hasTextFormField =
+        focus.context!.findAncestorWidgetOfExactType<TextFormField>() != null;
 
     return hasTextField || hasTextFormField;
   }
@@ -177,7 +181,9 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     if (_draggingTableId == null) return tables;
 
     // Separar a tabela sendo arrastada das outras
-    final draggingTable = tables.where((t) => t.id == _draggingTableId).toList();
+    final draggingTable = tables
+        .where((t) => t.id == _draggingTableId)
+        .toList();
     final otherTables = tables.where((t) => t.id != _draggingTableId).toList();
 
     // Retornar outras tabelas primeiro, depois a arrastada (em cima)
@@ -207,7 +213,8 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     if (renderBox == null) return globalPosition;
     final Offset localViewport = renderBox.globalToLocal(globalPosition);
     final Matrix4 inverse =
-        Matrix4.tryInvert(_transformationController.value) ?? Matrix4.identity();
+        Matrix4.tryInvert(_transformationController.value) ??
+        Matrix4.identity();
     return MatrixUtils.transformPoint(inverse, localViewport);
   }
 
@@ -236,9 +243,7 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     );
 
     // Converter para coordenadas do canvas
-    final canvasCenter = _globalToCanvas(
-      renderBox.localToGlobal(screenCenter),
-    );
+    final canvasCenter = _globalToCanvas(renderBox.localToGlobal(screenCenter));
 
     // Atualizar no estado (sem undo)
     final canvasNotifier = ref.read(canvasProvider.notifier);
@@ -292,7 +297,7 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     for (final t in tables) {
       minX = math.min(minX, t.position.dx);
       minY = math.min(minY, t.position.dy);
-      maxX = math.max(maxX, t.position.dx + 240.0);
+      maxX = math.max(maxX, t.position.dx + 260.0);
       final height = 44.0 + (t.columns.length * 30.0) + 8.0;
       maxY = math.max(maxY, t.position.dy + height);
     }
@@ -329,12 +334,8 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
     final canvasState = ref.read(canvasProvider);
     final table = canvasState.tables.firstWhere(
       (t) => t.id == tableId,
-      orElse: () => TableModel(
-        id: '',
-        name: '',
-        position: Offset.zero,
-        columns: [],
-      ),
+      orElse: () =>
+          TableModel(id: '', name: '', position: Offset.zero, columns: []),
     );
     if (table.id.isEmpty) return mouseCanvas;
 
@@ -446,10 +447,14 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
       final targetRect = tableRects[rel.targetTableId];
       if (sourceRect == null || targetRect == null) continue;
 
-      final (sourceAnchor, targetAnchor) =
-          GeometryUtils.getBestAnchorPair(sourceRect, targetRect);
-      final points =
-          GeometryUtils.calculateOrthogonalPath(sourceAnchor, targetAnchor);
+      final (sourceAnchor, targetAnchor) = GeometryUtils.getBestAnchorPair(
+        sourceRect,
+        targetRect,
+      );
+      final points = GeometryUtils.calculateOrthogonalPath(
+        sourceAnchor,
+        targetAnchor,
+      );
 
       for (int i = 0; i < points.length - 1; i++) {
         final dist = _distanceToSegment(canvasPoint, points[i], points[i + 1]);
@@ -506,7 +511,9 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
       if (previous != next && _initialSchemaLoaded) {
         final activeSchema = ref.read(schemasProvider).activeSchema;
         if (activeSchema != null) {
-          ref.read(schemasProvider.notifier).updateActiveSchemaData(
+          ref
+              .read(schemasProvider.notifier)
+              .updateActiveSchemaData(
                 activeSchema.copyWith(
                   tables: next.tables,
                   relationships: next.relationships,
@@ -540,7 +547,7 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
       tableRects[t.id] = Rect.fromLTWH(
         t.position.dx,
         t.position.dy,
-        240.0,
+        260.0,
         height,
       );
     }
@@ -552,7 +559,8 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
         autofocus: true,
         onKeyEvent: (node, event) {
           // Verificar se o foco está em um campo de texto
-          final currentFocus = WidgetsBinding.instance.focusManager.primaryFocus;
+          final currentFocus =
+              WidgetsBinding.instance.focusManager.primaryFocus;
           final isInTextField = _isFocusInTextField(currentFocus);
 
           // Se estiver em campo de texto, ignorar para permitir edição
@@ -566,404 +574,428 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
             // Header / Toolbar superior
             const HeaderToolbar(),
 
-          // Banner de aviso durante o Modo de Conexão
-          if (canvasState.isConnectingMode)
-            Container(
-              color: Colors.amber.shade800,
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Modo de Conexão Ativo: Clique na tabela de destino para criar um relacionamento.',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+            // Banner de aviso durante o Modo de Conexão
+            if (canvasState.isConnectingMode)
+              Container(
+                color: Colors.amber.shade800,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 6,
+                  horizontal: 16,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Modo de Conexão Ativo: Clique na tabela de destino para criar um relacionamento.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => canvasNotifier.cancelConnectionMode(),
-                    child: const Text(
-                      'CANCELAR',
-                      style: TextStyle(color: Colors.white),
+                    TextButton(
+                      onPressed: () => canvasNotifier.cancelConnectionMode(),
+                      child: const Text(
+                        'CANCELAR',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-          // Área de trabalho do Canvas Interativo (Pan & Zoom) e Sidebars
-          Expanded(
-            child: Row(
-              children: [
-                // Sidebar Lateral Esquerda (Esquemas / Projetos)
-                SchemasSidebar(
-                  onSchemaChanged: () {
-                    _fitView();
-                    _updateViewportCenter();
-                  },
+                  ],
                 ),
+              ),
 
-                // Canvas Principal Interativo
-                Expanded(
-                  child: ClipRect(
-                    child: Stack(
-                      children: [
-                        // Mesa com suporte a Zoom e Pan
-                        InteractiveViewer(
-                          key: _canvasKey,
-                          transformationController: _transformationController,
-                          minScale: 0.2,
-                          maxScale: 3.0,
-                          boundaryMargin: const EdgeInsets.all(3000),
-                          constrained: false,
-                          child: Container(
-                            width: 4000,
-                            height: 4000,
-                            color: canvasBg,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTapUp: (details) {
-                                // Garantir foco para atalhos de teclado
-                                _focusNode.requestFocus();
+            // Área de trabalho do Canvas Interativo (Pan & Zoom) e Sidebars
+            Expanded(
+              child: Row(
+                children: [
+                  // Sidebar Lateral Esquerda (Esquemas / Projetos)
+                  SchemasSidebar(
+                    onSchemaChanged: () {
+                      _fitView();
+                      _updateViewportCenter();
+                    },
+                  ),
 
-                                final canvasPoint =
-                                    _globalToCanvas(details.globalPosition);
-                                final hitRel = _findRelationshipAt(
-                                  canvasPoint,
-                                  canvasState,
-                                  tableRects,
-                                );
-                                if (hitRel != null) {
-                                  canvasNotifier.selectRelationship(hitRel.id);
-                                } else {
-                                  canvasNotifier.clearSelection();
-                                }
-                              },
-                              onPanStart: (details) {
-                                // Garantir foco para atalhos de teclado
-                                _focusNode.requestFocus();
+                  // Canvas Principal Interativo
+                  Expanded(
+                    child: ClipRect(
+                      child: Stack(
+                        children: [
+                          // Mesa com suporte a Zoom e Pan
+                          InteractiveViewer(
+                            key: _canvasKey,
+                            transformationController: _transformationController,
+                            minScale: 0.2,
+                            maxScale: 3.0,
+                            boundaryMargin: const EdgeInsets.all(3000),
+                            constrained: false,
+                            child: Container(
+                              width: 4000,
+                              height: 4000,
+                              color: canvasBg,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapUp: (details) {
+                                  // Garantir foco para atalhos de teclado
+                                  _focusNode.requestFocus();
 
-                                // Verificar se clicou em uma tabela
-                                final canvasPoint =
-                                    _globalToCanvas(details.globalPosition);
-                                bool hitTable = false;
-                                for (final t in canvasState.tables) {
-                                  final height =
-                                      44.0 + (t.columns.length * 30.0) + 8.0;
-                                  final rect = Rect.fromLTWH(
-                                    t.position.dx,
-                                    t.position.dy,
-                                    260.0,
-                                    height,
+                                  final canvasPoint = _globalToCanvas(
+                                    details.globalPosition,
                                   );
-                                  if (rect.contains(canvasPoint)) {
-                                    hitTable = true;
-                                    break;
-                                  }
-                                }
-
-                                // Se não clicou em tabela, iniciar marquee
-                                if (!hitTable) {
-                                  canvasNotifier.clearSelection();
-                                  setState(() {
-                                    _marqueeStart = details.globalPosition;
-                                    _marqueeEnd = details.globalPosition;
-                                    _isMarqueeDragging = true;
-                                  });
-                                }
-                              },
-                              onPanUpdate: (details) {
-                                if (_isMarqueeDragging) {
-                                  setState(() {
-                                    _marqueeEnd = details.globalPosition;
-                                  });
-
-                                  // Calcular retângulo de marquee no espaço do canvas
-                                  final startCanvas =
-                                      _globalToCanvas(_marqueeStart!);
-                                  final endCanvas =
-                                      _globalToCanvas(_marqueeEnd!);
-                                  final marqueeRect = Rect.fromPoints(
-                                    startCanvas,
-                                    endCanvas,
-                                  );
-
-                                  // Selecionar tabelas dentro do retângulo
-                                  final selectedIds = _getTablesInMarqueeRect(
-                                    marqueeRect,
+                                  final hitRel = _findRelationshipAt(
+                                    canvasPoint,
                                     canvasState,
+                                    tableRects,
                                   );
-                                  if (selectedIds.isNotEmpty) {
-                                    canvasNotifier.selectMultipleTables(
-                                      selectedIds,
+                                  if (hitRel != null) {
+                                    canvasNotifier.selectRelationship(
+                                      hitRel.id,
                                     );
+                                  } else {
+                                    canvasNotifier.clearSelection();
                                   }
-                                }
-                              },
-                              onPanEnd: (_) {
-                                if (_isMarqueeDragging) {
+                                },
+                                onPanStart: (details) {
+                                  // Garantir foco para atalhos de teclado
+                                  _focusNode.requestFocus();
+
+                                  // Verificar se clicou em uma tabela
+                                  final canvasPoint = _globalToCanvas(
+                                    details.globalPosition,
+                                  );
+                                  bool hitTable = false;
+                                  for (final t in canvasState.tables) {
+                                    final height =
+                                        44.0 + (t.columns.length * 30.0) + 8.0;
+                                    final rect = Rect.fromLTWH(
+                                      t.position.dx,
+                                      t.position.dy,
+                                      260.0,
+                                      height,
+                                    );
+                                    if (rect.contains(canvasPoint)) {
+                                      hitTable = true;
+                                      break;
+                                    }
+                                  }
+
+                                  // Se não clicou em tabela, iniciar marquee
+                                  if (!hitTable) {
+                                    canvasNotifier.clearSelection();
+                                    setState(() {
+                                      _marqueeStart = details.globalPosition;
+                                      _marqueeEnd = details.globalPosition;
+                                      _isMarqueeDragging = true;
+                                    });
+                                  }
+                                },
+                                onPanUpdate: (details) {
+                                  if (_isMarqueeDragging) {
+                                    setState(() {
+                                      _marqueeEnd = details.globalPosition;
+                                    });
+
+                                    // Calcular retângulo de marquee no espaço do canvas
+                                    final startCanvas = _globalToCanvas(
+                                      _marqueeStart!,
+                                    );
+                                    final endCanvas = _globalToCanvas(
+                                      _marqueeEnd!,
+                                    );
+                                    final marqueeRect = Rect.fromPoints(
+                                      startCanvas,
+                                      endCanvas,
+                                    );
+
+                                    // Selecionar tabelas dentro do retângulo
+                                    final selectedIds = _getTablesInMarqueeRect(
+                                      marqueeRect,
+                                      canvasState,
+                                    );
+                                    if (selectedIds.isNotEmpty) {
+                                      canvasNotifier.selectMultipleTables(
+                                        selectedIds,
+                                      );
+                                    }
+                                  }
+                                },
+                                onPanEnd: (_) {
+                                  if (_isMarqueeDragging) {
+                                    setState(() {
+                                      _isMarqueeDragging = false;
+                                      _marqueeStart = null;
+                                      _marqueeEnd = null;
+                                    });
+                                  }
+                                },
+                                onPanCancel: () {
                                   setState(() {
                                     _isMarqueeDragging = false;
                                     _marqueeStart = null;
                                     _marqueeEnd = null;
                                   });
-                                }
-                              },
-                              onPanCancel: () {
-                                setState(() {
-                                  _isMarqueeDragging = false;
-                                  _marqueeStart = null;
-                                  _marqueeEnd = null;
-                                });
-                              },
-                              onDoubleTapDown: (details) {
-                                final canvasPoint =
-                                    _globalToCanvas(details.globalPosition);
-                                final hitRel = _findRelationshipAt(
-                                  canvasPoint,
-                                  canvasState,
-                                  tableRects,
-                                );
-                                if (hitRel != null) {
-                                  _openRelationshipDialog(
-                                    sourceTableId: hitRel.sourceTableId,
-                                    sourceColumnId: hitRel.sourceColumnId,
-                                    targetTableId: hitRel.targetTableId,
-                                    initialTargetColumnId: hitRel.targetColumnId,
-                                    existingRelationship: hitRel,
+                                },
+                                onDoubleTapDown: (details) {
+                                  final canvasPoint = _globalToCanvas(
+                                    details.globalPosition,
                                   );
-                                }
-                              },
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  // Grade de Fundo
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter: GridPainter(
-                                        gridColor: gridColor,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Renderizador Ortogonal de Conexões (Linhas 90°)
-                                  Positioned.fill(
-                                    child: CustomPaint(
-                                      painter: OrthogonalConnectionPainter(
-                                        relationships:
-                                            canvasState.relationships,
-                                        tableRects: tableRects,
-                                        selectedRelationshipId:
-                                            canvasState.selectedRelationshipId,
-                                        lineColor: lineColor,
-                                        selectedLineColor:
-                                            AppColors.selectedLine,
-                                        textColor: theme.colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Renderização das Tabelas Móveis
-                                  // Reordenar para que a tabela sendo arrastada fique por último (em cima)
-                                  ..._getOrderedTables(canvasState.tables).map((t) {
-                                    final isSelected =
-                                        t.id == canvasState.selectedTableId ||
-                                        canvasState.selectedTableIds
-                                            .contains(t.id);
-                                    return TableCardWidget(
-                                      key: ValueKey(t.id),
-                                      table: t,
-                                      isSelected: isSelected,
-                                      isConnectingSource:
-                                          t.id ==
-                                          canvasState.connectionSourceTableId,
-                                      globalToCanvas: _globalToCanvas,
-                                      onConnectStart: (colId, pos) =>
-                                          _onConnectStart(t.id, colId, pos),
-                                      onConnectUpdate: (pos) =>
-                                          _onConnectUpdate(pos),
-                                      onConnectEnd: (colId, pos) =>
-                                          _onConnectEnd(t.id, colId, pos),
-                                      onDragStart: () {
-                                        setState(() {
-                                          _draggingTableId = t.id;
-                                        });
-                                      },
-                                      onDragEnd: () {
-                                        setState(() {
-                                          _draggingTableId = null;
-                                        });
-                                      },
-                                      onTap: () {
-                                        if (canvasState.isConnectingMode) {
-                                          if (canvasState
-                                                  .connectionSourceTableId !=
-                                              t.id) {
-                                            final sourceTable = canvasState
-                                                .tables
-                                                .firstWhere(
-                                                  (st) =>
-                                                      st.id ==
-                                                      canvasState
-                                                          .connectionSourceTableId,
-                                                );
-                                            final sourceCol =
-                                                sourceTable
-                                                    .primaryKeys
-                                                    .isNotEmpty
-                                                ? sourceTable.primaryKeys.first
-                                                : sourceTable.columns.first;
-                                            final targetCol =
-                                                t.primaryKeys.isNotEmpty
-                                                ? t.primaryKeys.first
-                                                : t.columns.first;
-
-                                            canvasNotifier.completeConnection(
-                                              targetTableId: t.id,
-                                              sourceColumnId: sourceCol.id,
-                                              targetColumnId: targetCol.id,
-                                            );
-                                          }
-                                        } else {
-                                          canvasNotifier.selectTable(t.id);
-                                        }
-                                      },
+                                  final hitRel = _findRelationshipAt(
+                                    canvasPoint,
+                                    canvasState,
+                                    tableRects,
+                                  );
+                                  if (hitRel != null) {
+                                    _openRelationshipDialog(
+                                      sourceTableId: hitRel.sourceTableId,
+                                      sourceColumnId: hitRel.sourceColumnId,
+                                      targetTableId: hitRel.targetTableId,
+                                      initialTargetColumnId:
+                                          hitRel.targetColumnId,
+                                      existingRelationship: hitRel,
                                     );
-                                  }),
-
-                                  // Renderizador da Linha Temporária durante o Drag
-                                  if (_dragConnectionStartCanvas != null &&
-                                      _dragConnectionCurrentCanvas != null)
+                                  }
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    // Grade de Fundo
                                     Positioned.fill(
                                       child: CustomPaint(
-                                        painter: DraggingConnectionPainter(
-                                          startPoint:
-                                              _dragConnectionStartCanvas!,
-                                          endPoint:
-                                              _dragConnectionCurrentCanvas!,
-                                          lineColor: theme.colorScheme.primary,
+                                        painter: GridPainter(
+                                          gridColor: gridColor,
                                         ),
                                       ),
                                     ),
 
-                                  // Overlay de Marquee Selection
-                                  if (_isMarqueeDragging &&
-                                      _marqueeStart != null &&
-                                      _marqueeEnd != null)
+                                    // Renderizador Ortogonal de Conexões (Linhas 90°)
                                     Positioned.fill(
                                       child: CustomPaint(
-                                        painter: _MarqueeSelectionPainter(
-                                          start: _globalToCanvas(_marqueeStart!),
-                                          end: _globalToCanvas(_marqueeEnd!),
-                                          borderColor:
-                                              theme.colorScheme.primary,
-                                          fillColor: theme.colorScheme.primary
-                                              .withValues(alpha: 0.1),
+                                        painter: OrthogonalConnectionPainter(
+                                          relationships:
+                                              canvasState.relationships,
+                                          tableRects: tableRects,
+                                          selectedRelationshipId: canvasState
+                                              .selectedRelationshipId,
+                                          lineColor: lineColor,
+                                          selectedLineColor:
+                                              AppColors.selectedLine,
+                                          textColor:
+                                              theme.colorScheme.onSurface,
                                         ),
                                       ),
                                     ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
 
-                        // Barra Flutuante de Controles de Zoom & Recentralização
-                        Positioned(
-                          left: 16,
-                          bottom: 16,
-                          child: Material(
-                            elevation: 6,
-                            borderRadius: BorderRadius.circular(8),
-                            color: theme.cardColor.withValues(alpha: 0.9),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: theme.dividerColor.withValues(
-                                    alpha: 0.5,
-                                  ),
+                                    // Renderização das Tabelas Móveis
+                                    // Reordenar para que a tabela sendo arrastada fique por último (em cima)
+                                    ..._getOrderedTables(
+                                      canvasState.tables,
+                                    ).map((t) {
+                                      final isSelected =
+                                          t.id == canvasState.selectedTableId ||
+                                          canvasState.selectedTableIds.contains(
+                                            t.id,
+                                          );
+                                      return TableCardWidget(
+                                        key: ValueKey(t.id),
+                                        table: t,
+                                        isSelected: isSelected,
+                                        isConnectingSource:
+                                            t.id ==
+                                            canvasState.connectionSourceTableId,
+                                        globalToCanvas: _globalToCanvas,
+                                        onConnectStart: (colId, pos) =>
+                                            _onConnectStart(t.id, colId, pos),
+                                        onConnectUpdate: (pos) =>
+                                            _onConnectUpdate(pos),
+                                        onConnectEnd: (colId, pos) =>
+                                            _onConnectEnd(t.id, colId, pos),
+                                        onDragStart: () {
+                                          setState(() {
+                                            _draggingTableId = t.id;
+                                          });
+                                        },
+                                        onDragEnd: () {
+                                          setState(() {
+                                            _draggingTableId = null;
+                                          });
+                                        },
+                                        onTap: () {
+                                          if (canvasState.isConnectingMode) {
+                                            if (canvasState
+                                                    .connectionSourceTableId !=
+                                                t.id) {
+                                              final sourceTable = canvasState
+                                                  .tables
+                                                  .firstWhere(
+                                                    (st) =>
+                                                        st.id ==
+                                                        canvasState
+                                                            .connectionSourceTableId,
+                                                  );
+                                              final sourceCol =
+                                                  sourceTable
+                                                      .primaryKeys
+                                                      .isNotEmpty
+                                                  ? sourceTable
+                                                        .primaryKeys
+                                                        .first
+                                                  : sourceTable.columns.first;
+                                              final targetCol =
+                                                  t.primaryKeys.isNotEmpty
+                                                  ? t.primaryKeys.first
+                                                  : t.columns.first;
+
+                                              canvasNotifier.completeConnection(
+                                                targetTableId: t.id,
+                                                sourceColumnId: sourceCol.id,
+                                                targetColumnId: targetCol.id,
+                                              );
+                                            }
+                                          } else {
+                                            canvasNotifier.selectTable(t.id);
+                                          }
+                                        },
+                                      );
+                                    }),
+
+                                    // Renderizador da Linha Temporária durante o Drag
+                                    if (_dragConnectionStartCanvas != null &&
+                                        _dragConnectionCurrentCanvas != null)
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: DraggingConnectionPainter(
+                                            startPoint:
+                                                _dragConnectionStartCanvas!,
+                                            endPoint:
+                                                _dragConnectionCurrentCanvas!,
+                                            lineColor:
+                                                theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ),
+
+                                    // Overlay de Marquee Selection
+                                    if (_isMarqueeDragging &&
+                                        _marqueeStart != null &&
+                                        _marqueeEnd != null)
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: _MarqueeSelectionPainter(
+                                            start: _globalToCanvas(
+                                              _marqueeStart!,
+                                            ),
+                                            end: _globalToCanvas(_marqueeEnd!),
+                                            borderColor:
+                                                theme.colorScheme.primary,
+                                            fillColor: theme.colorScheme.primary
+                                                .withValues(alpha: 0.1),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.remove_rounded,
-                                      size: 20,
+                            ),
+                          ),
+
+                          // Barra Flutuante de Controles de Zoom & Recentralização
+                          Positioned(
+                            left: 16,
+                            bottom: 16,
+                            child: Material(
+                              elevation: 6,
+                              borderRadius: BorderRadius.circular(8),
+                              color: theme.cardColor.withValues(alpha: 0.9),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: theme.dividerColor.withValues(
+                                      alpha: 0.5,
                                     ),
-                                    tooltip: 'Diminuir Zoom (-)',
-                                    onPressed: () => _zoomByFactor(1 / 1.2),
                                   ),
-                                  InkWell(
-                                    onTap: _resetZoom,
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.remove_rounded,
+                                        size: 20,
                                       ),
-                                      child: Text(
-                                        '${(_currentScale * 100).round()}%',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme.onSurface,
+                                      tooltip: 'Diminuir Zoom (-)',
+                                      onPressed: () => _zoomByFactor(1 / 1.2),
+                                    ),
+                                    InkWell(
+                                      onTap: _resetZoom,
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 6,
+                                        ),
+                                        child: Text(
+                                          '${(_currentScale * 100).round()}%',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.add_rounded,
-                                      size: 20,
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.add_rounded,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'Aumentar Zoom (+)',
+                                      onPressed: () => _zoomByFactor(1.2),
                                     ),
-                                    tooltip: 'Aumentar Zoom (+)',
-                                    onPressed: () => _zoomByFactor(1.2),
-                                  ),
-                                  Container(
-                                    height: 18,
-                                    width: 1,
-                                    color: theme.dividerColor,
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 4,
+                                    Container(
+                                      height: 18,
+                                      width: 1,
+                                      color: theme.dividerColor,
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.fit_screen_rounded,
-                                      size: 20,
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.fit_screen_rounded,
+                                        size: 20,
+                                      ),
+                                      tooltip: 'Centralizar Diagrama',
+                                      onPressed: _fitView,
                                     ),
-                                    tooltip: 'Centralizar Diagrama',
-                                    onPressed: _fitView,
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                // Painel Lateral de Propriedades
-                const PropertySidebar(),
-              ],
+                  // Painel Lateral de Propriedades
+                  const PropertySidebar(),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }

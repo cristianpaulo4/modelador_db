@@ -58,7 +58,8 @@ class OrthogonalConnectionPainter extends CustomPainter {
       );
       _drawCardinalityBadges(
         canvas,
-        rawPathPoints,
+        sourceAnchor,
+        targetAnchor,
         rel.cardinality,
         currentLineColor,
         textColor,
@@ -127,16 +128,12 @@ class OrthogonalConnectionPainter extends CustomPainter {
 
   void _drawCardinalityBadges(
     Canvas canvas,
-    List<Offset> points,
+    AnchorPoint sourceAnchor,
+    AnchorPoint targetAnchor,
     CardinalityType cardinality,
     Color color,
     Color txtColor,
   ) {
-    if (points.length < 2) return;
-
-    final pStart = points.first;
-    final pEnd = points.last;
-
     String sourceText = 'N';
     String targetText = '1';
 
@@ -154,63 +151,13 @@ class OrthogonalConnectionPainter extends CustomPainter {
       targetText = 'M';
     }
 
-    // Distância fixa de 28px da borda da tabela em todos os lados
-    const badgeOffset = 28.0;
-
-    // Calcular posição do badge para cada extremidade
-    final sourceBadgePos = _getBadgePositionFromAnchor(pStart, badgeOffset);
-    final targetBadgePos = _getBadgePositionFromAnchor(pEnd, badgeOffset);
-
-    _drawBadgeText(canvas, sourceBadgePos, sourceText, color, txtColor);
-    _drawBadgeText(canvas, targetBadgePos, targetText, color, txtColor);
-  }
-
-  /// Calcula a posição do badge baseada na distância perpendicular à borda da tabela
-  Offset _getBadgePositionFromAnchor(Offset anchor, double distance) {
-    // Encontrar qual tabela contém este ponto de ancoragem
-    for (final entry in tableRects.entries) {
-      final rect = entry.value;
-
-      // Calcular distância de cada lado
-      final distToLeft = (anchor.dx - rect.left).abs();
-      final distToRight = (anchor.dx - rect.right).abs();
-      final distToTop = (anchor.dy - rect.top).abs();
-      final distToBottom = (anchor.dy - rect.bottom).abs();
-
-      // Verificar se o ponto está dentro ou na borda do retângulo (com tolerância)
-      final isInsideX =
-          anchor.dx >= rect.left - 1 && anchor.dx <= rect.right + 1;
-      final isInsideY =
-          anchor.dy >= rect.top - 1 && anchor.dy <= rect.bottom + 1;
-
-      if (isInsideX && isInsideY) {
-        // Determinar qual lado está mais próximo
-        final minDist = [
-          distToLeft,
-          distToRight,
-          distToTop,
-          distToBottom,
-        ].reduce((a, b) => a < b ? a : b);
-
-        if (minDist == distToLeft) {
-          return Offset(rect.left - distance, anchor.dy);
-        } else if (minDist == distToRight) {
-          return Offset(rect.right + distance, anchor.dy);
-        } else if (minDist == distToTop) {
-          return Offset(anchor.dx, rect.top - distance);
-        } else {
-          return Offset(anchor.dx, rect.bottom + distance);
-        }
-      }
-    }
-
-    // Fallback: retornar posição com offset para cima
-    return Offset(anchor.dx, anchor.dy - distance);
+    _drawBadgeText(canvas, sourceAnchor, sourceText, color, txtColor);
+    _drawBadgeText(canvas, targetAnchor, targetText, color, txtColor);
   }
 
   void _drawBadgeText(
     Canvas canvas,
-    Offset center,
+    AnchorPoint anchor,
     String text,
     Color bg,
     Color textClr,
@@ -229,10 +176,44 @@ class OrthogonalConnectionPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
+    final badgeWidth = textPainter.width + 10.0;
+    final badgeHeight = textPainter.height + 6.0;
+
+    // Distância fixa idêntica (em pixels) da borda da tabela até a borda mais próxima do badge
+    const fixedDistance = 14.0;
+
+    Offset center;
+    switch (anchor.side) {
+      case ConnectionSide.left:
+        center = Offset(
+          anchor.point.dx - fixedDistance - (badgeWidth / 2),
+          anchor.point.dy,
+        );
+        break;
+      case ConnectionSide.right:
+        center = Offset(
+          anchor.point.dx + fixedDistance + (badgeWidth / 2),
+          anchor.point.dy,
+        );
+        break;
+      case ConnectionSide.top:
+        center = Offset(
+          anchor.point.dx,
+          anchor.point.dy - fixedDistance - (badgeHeight / 2),
+        );
+        break;
+      case ConnectionSide.bottom:
+        center = Offset(
+          anchor.point.dx,
+          anchor.point.dy + fixedDistance + (badgeHeight / 2),
+        );
+        break;
+    }
+
     final badgeRect = Rect.fromCenter(
       center: center,
-      width: textPainter.width + 10,
-      height: textPainter.height + 6,
+      width: badgeWidth,
+      height: badgeHeight,
     );
 
     final bgPaint = Paint()
