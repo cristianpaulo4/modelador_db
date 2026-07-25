@@ -669,6 +669,7 @@ class _MainDesignerScreenState extends ConsumerState<MainDesignerScreen> {
 
                                 // Se não clicou em tabela, iniciar marquee
                                 if (!hitTable) {
+                                  canvasNotifier.clearSelection();
                                   setState(() {
                                     _marqueeStart = details.globalPosition;
                                     _marqueeEnd = details.globalPosition;

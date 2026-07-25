@@ -63,10 +63,14 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     _tableNameController = TextEditingController();
     _colNameFocusNode = FocusNode();
     _tableNameFocusNode = FocusNode();
+    _colNameFocusNode.addListener(_onColNameFocusChanged);
+    _tableNameFocusNode.addListener(_onTableNameFocusChanged);
   }
 
   @override
   void dispose() {
+    _colNameFocusNode.removeListener(_onColNameFocusChanged);
+    _tableNameFocusNode.removeListener(_onTableNameFocusChanged);
     _colNameController.dispose();
     _lengthController.dispose();
     _tableNameController.dispose();
@@ -75,7 +79,98 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     super.dispose();
   }
 
+  void _onColNameFocusChanged() {
+    if (!_colNameFocusNode.hasFocus && _editingColumnId != null) {
+      final targetColId = _editingColumnId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted ||
+            _editingColumnId != targetColId ||
+            _colNameFocusNode.hasFocus)
+          return;
+        final col = widget.table.columns.firstWhere(
+          (c) => c.id == targetColId,
+          orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+        );
+        if (col.id.isNotEmpty) {
+          _saveColumnEdit(widget.table.id, col);
+        }
+      });
+    }
+  }
+
+  void _onTableNameFocusChanged() {
+    if (!_tableNameFocusNode.hasFocus && _isEditingTableName) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_isEditingTableName || _tableNameFocusNode.hasFocus)
+          return;
+        _saveTableNameEdit();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(TableCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isSelected && !widget.isSelected) {
+      if (_isEditingTableName || _editingColumnId != null) {
+        final targetColId = _editingColumnId;
+        final wasEditingTableName = _isEditingTableName;
+
+        setState(() {
+          _isEditingTableName = false;
+          _editingColumnId = null;
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (wasEditingTableName) {
+            final canvasNotifier = ref.read(canvasProvider.notifier);
+            final newName = _tableNameController.text.trim();
+            if (newName.isNotEmpty && newName != widget.table.name) {
+              canvasNotifier.updateTable(widget.table.copyWith(name: newName));
+            }
+          }
+          if (targetColId != null) {
+            final col = widget.table.columns.firstWhere(
+              (c) => c.id == targetColId,
+              orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+            );
+            if (col.id.isNotEmpty) {
+              final canvasNotifier = ref.read(canvasProvider.notifier);
+              final newName = _colNameController.text.trim();
+              if (newName.isNotEmpty) {
+                final updated = col.copyWith(
+                  name: newName,
+                  dataType: _selectedDataType,
+                  lengthOrPrecision: _lengthController.text.trim().isEmpty
+                      ? null
+                      : _lengthController.text.trim(),
+                );
+                canvasNotifier.updateColumn(widget.table.id, updated);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
   void _startEditingColumn(ColumnModel col, List<String> availableTypes) {
+    if (!widget.isSelected) {
+      widget.onTap();
+    }
+    if (_editingColumnId != null && _editingColumnId != col.id) {
+      final oldCol = widget.table.columns.firstWhere(
+        (c) => c.id == _editingColumnId,
+        orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+      );
+      if (oldCol.id.isNotEmpty) {
+        _saveColumnEdit(widget.table.id, oldCol);
+      }
+    }
+    if (_isEditingTableName) {
+      _saveTableNameEdit();
+    }
     setState(() {
       _editingColumnId = col.id;
       _colNameController.text = col.name;
@@ -119,6 +214,18 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
   }
 
   void _startEditingTableName() {
+    if (!widget.isSelected) {
+      widget.onTap();
+    }
+    if (_editingColumnId != null) {
+      final oldCol = widget.table.columns.firstWhere(
+        (c) => c.id == _editingColumnId,
+        orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+      );
+      if (oldCol.id.isNotEmpty) {
+        _saveColumnEdit(widget.table.id, oldCol);
+      }
+    }
     setState(() {
       _isEditingTableName = true;
       _tableNameController.text = widget.table.name;
@@ -170,7 +277,8 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     // Encontrar a tabela referenciada e sua coluna PK
     final refTable = canvasState.tables.firstWhere(
       (t) => t.id == rel.sourceTableId,
-      orElse: () => TableModel(id: '', name: '', position: Offset.zero, columns: []),
+      orElse: () =>
+          TableModel(id: '', name: '', position: Offset.zero, columns: []),
     );
 
     if (refTable.id.isEmpty) return false;
@@ -213,7 +321,21 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
       top: widget.table.position.dy,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
+        onTap: () {
+          if (_isEditingTableName) {
+            _saveTableNameEdit();
+          }
+          if (_editingColumnId != null) {
+            final col = widget.table.columns.firstWhere(
+              (c) => c.id == _editingColumnId,
+              orElse: () => ColumnModel(id: '', name: '', dataType: ''),
+            );
+            if (col.id.isNotEmpty) {
+              _saveColumnEdit(widget.table.id, col);
+            }
+          }
+          widget.onTap();
+        },
         onPanStart: (details) {
           if (_isConnectingDrag) return;
           final canvasPoint = widget.globalToCanvas(details.globalPosition);
@@ -332,9 +454,12 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                       ),
                                       child: GestureDetector(
                                         onDoubleTap: () {
-                                          _tableNameController.selection = TextSelection(
+                                          _tableNameController
+                                              .selection = TextSelection(
                                             baseOffset: 0,
-                                            extentOffset: _tableNameController.text.length,
+                                            extentOffset: _tableNameController
+                                                .text
+                                                .length,
                                           );
                                         },
                                         child: TextField(
@@ -486,9 +611,11 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                       ),
                                       child: GestureDetector(
                                         onDoubleTap: () {
-                                          _colNameController.selection = TextSelection(
+                                          _colNameController
+                                              .selection = TextSelection(
                                             baseOffset: 0,
-                                            extentOffset: _colNameController.text.length,
+                                            extentOffset:
+                                                _colNameController.text.length,
                                           );
                                         },
                                         child: TextField(
@@ -635,9 +762,11 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                       ),
                                       child: GestureDetector(
                                         onDoubleTap: () {
-                                          _lengthController.selection = TextSelection(
+                                          _lengthController
+                                              .selection = TextSelection(
                                             baseOffset: 0,
-                                            extentOffset: _lengthController.text.length,
+                                            extentOffset:
+                                                _lengthController.text.length,
                                           );
                                         },
                                         child: TextField(
@@ -679,7 +808,10 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                   selectedRel.targetColumnId == col.id));
 
                       // Verificar incompatibilidade de tipo na FK
-                      final hasFkTypeError = _hasFkTypeMismatch(col, canvasState);
+                      final hasFkTypeError = _hasFkTypeMismatch(
+                        col,
+                        canvasState,
+                      );
 
                       return GestureDetector(
                         onTap: () =>
@@ -705,14 +837,12 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                       alpha: 0.22,
                                     )
                                   : Colors.transparent,
-                              borderRadius: (isColRelatedToSelectedRel || hasFkTypeError)
+                              borderRadius:
+                                  (isColRelatedToSelectedRel || hasFkTypeError)
                                   ? BorderRadius.circular(6)
                                   : null,
                               border: hasFkTypeError
-                                  ? Border.all(
-                                      color: Colors.red,
-                                      width: 1.5,
-                                    )
+                                  ? Border.all(color: Colors.red, width: 1.5)
                                   : isColRelatedToSelectedRel
                                   ? Border.all(
                                       color: theme.colorScheme.primary,
@@ -731,7 +861,9 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                               boxShadow: hasFkTypeError
                                   ? [
                                       BoxShadow(
-                                        color: Colors.red.withValues(alpha: 0.3),
+                                        color: Colors.red.withValues(
+                                          alpha: 0.3,
+                                        ),
                                         blurRadius: 6,
                                         spreadRadius: 1,
                                       ),
@@ -761,7 +893,9 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                 if (col.isForeignKey) ...[
                                   _buildBadge(
                                     'FK',
-                                    hasFkTypeError ? Colors.red : AppColors.foreignKeyCyan,
+                                    hasFkTypeError
+                                        ? Colors.red
+                                        : AppColors.foreignKeyCyan,
                                     Colors.white,
                                   ),
                                   const SizedBox(width: 4),
