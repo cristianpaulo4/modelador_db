@@ -53,6 +53,7 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
   // Estado para Edição Inline de Nome da Tabela
   bool _isEditingTableName = false;
   late TextEditingController _tableNameController;
+  late FocusNode _tableNameFocusNode;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     _lengthController = TextEditingController();
     _tableNameController = TextEditingController();
     _colNameFocusNode = FocusNode();
+    _tableNameFocusNode = FocusNode();
   }
 
   @override
@@ -69,6 +71,7 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     _lengthController.dispose();
     _tableNameController.dispose();
     _colNameFocusNode.dispose();
+    _tableNameFocusNode.dispose();
     super.dispose();
   }
 
@@ -119,6 +122,13 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
     setState(() {
       _isEditingTableName = true;
       _tableNameController.text = widget.table.name;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _tableNameFocusNode.requestFocus();
+      _tableNameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _tableNameController.text.length,
+      );
     });
   }
 
@@ -329,7 +339,8 @@ class _TableCardWidgetState extends ConsumerState<TableCardWidget> {
                                         },
                                         child: TextField(
                                           controller: _tableNameController,
-                                          autofocus: true,
+                                          focusNode: _tableNameFocusNode,
+                                          autofocus: false,
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,

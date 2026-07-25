@@ -63,9 +63,11 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         .where((t) => selectedIds.contains(t.id))
         .toList();
     _clipboardRelationships = state.relationships
-        .where((r) =>
-            selectedIds.contains(r.sourceTableId) &&
-            selectedIds.contains(r.targetTableId))
+        .where(
+          (r) =>
+              selectedIds.contains(r.sourceTableId) &&
+              selectedIds.contains(r.targetTableId),
+        )
         .toList();
     _isCutOperation = false;
   }
@@ -89,9 +91,11 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = state.copyWith(
       tables: state.tables.where((t) => !selectedIds.contains(t.id)).toList(),
       relationships: state.relationships
-          .where((r) =>
-              !selectedIds.contains(r.sourceTableId) &&
-              !selectedIds.contains(r.targetTableId))
+          .where(
+            (r) =>
+                !selectedIds.contains(r.sourceTableId) &&
+                !selectedIds.contains(r.targetTableId),
+          )
           .toList(),
       clearSelectedTable: true,
       clearSelectedTables: true,
@@ -121,10 +125,7 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
       maxX = maxX > table.position.dx ? maxX : table.position.dx;
       maxY = maxY > table.position.dy ? maxY : table.position.dy;
     }
-    final centerOfCopied = Offset(
-      (minX + maxX) / 2,
-      (minY + maxY) / 2,
-    );
+    final centerOfCopied = Offset((minX + maxX) / 2, (minY + maxY) / 2);
 
     // Offset para mover as tabelas para a posição de cola
     final offset = pastePosition - centerOfCopied;
@@ -195,9 +196,11 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         .where((t) => selectedIds.contains(t.id))
         .toList();
     _clipboardRelationships = state.relationships
-        .where((r) =>
-            selectedIds.contains(r.sourceTableId) &&
-            selectedIds.contains(r.targetTableId))
+        .where(
+          (r) =>
+              selectedIds.contains(r.sourceTableId) &&
+              selectedIds.contains(r.targetTableId),
+        )
         .toList();
     _isCutOperation = false;
 
@@ -357,6 +360,8 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     _saveToUndoStack();
     final newId = _uuid.v4();
     final colId = _uuid.v4();
+    final createAtId = _uuid.v4();
+    final updateAtId = _uuid.v4();
 
     // Usar posição fornecida ou centro da viewport
     final tablePosition = position ?? state.viewportCenter;
@@ -372,6 +377,20 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
           name: 'id',
           dataType: state.activeDialect.uuidType,
           isPrimaryKey: true,
+          isNotNull: true,
+        ),
+        ColumnModel(
+          id: createAtId,
+          name: 'create_at',
+          dataType: state.activeDialect.timestampType,
+          defaultValue: 'now()',
+          isNotNull: true,
+        ),
+        ColumnModel(
+          id: updateAtId,
+          name: 'update_at',
+          dataType: state.activeDialect.timestampType,
+          defaultValue: 'now()',
           isNotNull: true,
         ),
       ],
@@ -507,7 +526,10 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
         }
         return c;
       }).toList();
-      updateTable(sourceTable.copyWith(columns: updatedCols), saveToHistory: false);
+      updateTable(
+        sourceTable.copyWith(columns: updatedCols),
+        saveToHistory: false,
+      );
     }
 
     state = state.copyWith(
@@ -551,7 +573,10 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
       return c;
     }).toList();
 
-    updateTable(sourceTable.copyWith(columns: updatedCols), saveToHistory: false);
+    updateTable(
+      sourceTable.copyWith(columns: updatedCols),
+      saveToHistory: false,
+    );
 
     state = state.copyWith(
       relationships: [...state.relationships, newRel],
@@ -615,7 +640,11 @@ class CanvasNotifier extends StateNotifier<CanvasState> {
     state = state.copyWith(
       tables: state.tables.where((t) => !ids.contains(t.id)).toList(),
       relationships: state.relationships
-          .where((r) => !ids.contains(r.sourceTableId) && !ids.contains(r.targetTableId))
+          .where(
+            (r) =>
+                !ids.contains(r.sourceTableId) &&
+                !ids.contains(r.targetTableId),
+          )
           .toList(),
       clearSelectedTables: true,
     );

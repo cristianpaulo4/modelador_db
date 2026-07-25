@@ -26,6 +26,20 @@ enum SqlDialect {
     }
   }
 
+  /// Tipo de dado TIMESTAMP padrão para cada dialeto
+  String get timestampType {
+    switch (this) {
+      case SqlDialect.postgres:
+      case SqlDialect.mysql:
+      case SqlDialect.oracle:
+        return 'TIMESTAMP';
+      case SqlDialect.sqlite:
+        return 'DATETIME';
+      case SqlDialect.sqlserver:
+        return 'DATETIME2';
+    }
+  }
+
   List<String> get availableDataTypes {
     switch (this) {
       case SqlDialect.postgres:
