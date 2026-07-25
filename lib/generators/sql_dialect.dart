@@ -439,9 +439,15 @@ enum SqlDialect {
         (col.name.toLowerCase() == 'id');
 
     if (isIdColumn) {
+      final bool autoInc = col.isPrimaryKey ? idIsAutoIncrement : false;
+      final bool shouldClearDefault = autoInc ||
+          (col.defaultValue != null &&
+              (col.defaultValue!.toLowerCase().contains('uuid') ||
+                  col.defaultValue!.toLowerCase().contains('gen_random')));
       return col.copyWith(
         dataType: idDataType,
-        isAutoIncrement: col.isPrimaryKey ? idIsAutoIncrement : false,
+        isAutoIncrement: autoInc,
+        clearDefaultValue: shouldClearDefault && (idIsAutoIncrement || idDataType != 'UUID'),
       );
     }
 
@@ -450,6 +456,14 @@ enum SqlDialect {
     if (!idIsAutoIncrement) {
       autoInc = false;
     }
-    return col.copyWith(dataType: newType, isAutoIncrement: autoInc);
+    final bool shouldClearDefault = autoInc ||
+        (col.defaultValue != null &&
+            (col.defaultValue!.toLowerCase().contains('uuid') ||
+                col.defaultValue!.toLowerCase().contains('gen_random')));
+    return col.copyWith(
+      dataType: newType,
+      isAutoIncrement: autoInc,
+      clearDefaultValue: shouldClearDefault && (idIsAutoIncrement || newType != 'UUID'),
+    );
   }
 }

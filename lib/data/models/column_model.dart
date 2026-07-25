@@ -36,6 +36,7 @@ class ColumnModel {
     bool? isUnique,
     bool? isAutoIncrement,
     String? defaultValue,
+    bool clearDefaultValue = false,
     String? comment,
   }) {
     return ColumnModel(
@@ -48,7 +49,7 @@ class ColumnModel {
       isNotNull: isNotNull ?? this.isNotNull,
       isUnique: isUnique ?? this.isUnique,
       isAutoIncrement: isAutoIncrement ?? this.isAutoIncrement,
-      defaultValue: defaultValue ?? this.defaultValue,
+      defaultValue: clearDefaultValue ? null : (defaultValue ?? this.defaultValue),
       comment: comment ?? this.comment,
     );
   }

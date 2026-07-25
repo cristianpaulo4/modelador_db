@@ -116,10 +116,12 @@ class SqliteGenerator implements SqlDialectGenerator {
         if (col.isUnique && (!col.isPrimaryKey || isCompositePk)) {
           def += ' UNIQUE';
         }
-        if (col.defaultValue != null && col.defaultValue!.isNotEmpty) {
+        if (col.defaultValue != null && col.defaultValue!.isNotEmpty && !col.isAutoIncrement) {
           var defaultVal = col.defaultValue!.trim();
           if (defaultVal.toLowerCase() == 'now()' || defaultVal.toLowerCase() == 'now') {
             defaultVal = 'CURRENT_TIMESTAMP';
+          } else if (defaultVal.toLowerCase().contains('gen_random_uuid') || defaultVal.toLowerCase().contains('uuid_generate')) {
+            defaultVal = "(lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))))";
           }
           def += ' DEFAULT $defaultVal';
         }

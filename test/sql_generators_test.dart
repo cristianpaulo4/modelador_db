@@ -4,6 +4,7 @@ import 'package:modelador_db/data/models/relationship_model.dart';
 import 'package:modelador_db/data/models/table_model.dart';
 import 'package:modelador_db/generators/sql_dialect.dart';
 import 'package:modelador_db/generators/sql_dialect_generator.dart';
+import 'package:modelador_db/parsers/sql_ddl_parser.dart';
 
 void main() {
   group('SQL Dialect Generators Tests', () {
@@ -106,6 +107,27 @@ void main() {
 
       expect(ddl, contains('CREATE TABLE "USERS"'));
       expect(ddl, contains('CONSTRAINT "PK_USERS" PRIMARY KEY'));
+    });
+
+    test('Converting Postgres with gen_random_uuid to SQLite does not produce invalid syntax', () {
+      const pgSql = '''
+CREATE TABLE "usuario" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "nome" VARCHAR,
+    CONSTRAINT "pk_usuario" PRIMARY KEY ("id")
+);
+''';
+      final parsed = SqlDdlParser.parseSqlScript(pgSql);
+      final sqliteTables = parsed.tables.map((t) {
+        final newCols = t.columns.map((c) => SqlDialect.sqlite.mapColumn(c)).toList();
+        return t.copyWith(columns: newCols);
+      }).toList();
+
+      final gen = SqlDialectGenerator.forDialect(SqlDialect.sqlite);
+      final ddl = gen.generateDdl(sqliteTables, parsed.relationships);
+
+      // Em SQLite não se pode ter INTEGER PRIMARY KEY AUTOINCREMENT seguido por DEFAULT gen_random_uuid()
+      expect(ddl, isNot(contains('DEFAULT gen_random_uuid()')));
     });
   });
 }
