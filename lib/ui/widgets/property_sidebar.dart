@@ -239,6 +239,7 @@ class PropertySidebar extends ConsumerWidget {
               Expanded(
                 flex: 2,
                 child: DropdownButtonFormField<String>(
+                  dropdownColor: theme.colorScheme.surface,
                   initialValue: activeDialect.availableDataTypes.contains(col.dataType)
                       ? col.dataType
                       : activeDialect.availableDataTypes.first,
@@ -246,7 +247,7 @@ class PropertySidebar extends ConsumerWidget {
                   decoration: const InputDecoration(
                     contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   ),
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface),
                   onChanged: (newType) {
                     if (newType != null) {
                       canvasNotifier.updateColumn(tableId, col.copyWith(dataType: newType));
@@ -255,7 +256,7 @@ class PropertySidebar extends ConsumerWidget {
                   items: activeDialect.availableDataTypes.map((type) {
                     return DropdownMenuItem(
                       value: type,
-                      child: Text(type, style: const TextStyle(fontSize: 12)),
+                      child: Text(type, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)),
                     );
                   }).toList(),
                 ),
@@ -356,12 +357,14 @@ class PropertySidebar extends ConsumerWidget {
         Text('Cardinalidade', style: theme.textTheme.labelMedium),
         const SizedBox(height: 4),
         DropdownButtonFormField<CardinalityType>(
+          dropdownColor: theme.colorScheme.surface,
+          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
           initialValue: rel.cardinality,
           decoration: const InputDecoration(contentPadding: EdgeInsets.all(10)),
           items: CardinalityType.values.map((c) {
             return DropdownMenuItem(
               value: c,
-              child: Text(c.label),
+              child: Text(c.label, style: TextStyle(color: theme.colorScheme.onSurface)),
             );
           }).toList(),
           onChanged: (val) {
@@ -375,12 +378,14 @@ class PropertySidebar extends ConsumerWidget {
         Text('Regra ON DELETE', style: theme.textTheme.labelMedium),
         const SizedBox(height: 4),
         DropdownButtonFormField<ReferentialAction>(
+          dropdownColor: theme.colorScheme.surface,
+          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
           initialValue: rel.onDelete,
           decoration: const InputDecoration(contentPadding: EdgeInsets.all(10)),
           items: ReferentialAction.values.map((act) {
             return DropdownMenuItem(
               value: act,
-              child: Text(act.sqlKeyword),
+              child: Text(act.sqlKeyword, style: TextStyle(color: theme.colorScheme.onSurface)),
             );
           }).toList(),
           onChanged: (val) {
@@ -394,12 +399,14 @@ class PropertySidebar extends ConsumerWidget {
         Text('Regra ON UPDATE', style: theme.textTheme.labelMedium),
         const SizedBox(height: 4),
         DropdownButtonFormField<ReferentialAction>(
+          dropdownColor: theme.colorScheme.surface,
+          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
           initialValue: rel.onUpdate,
           decoration: const InputDecoration(contentPadding: EdgeInsets.all(10)),
           items: ReferentialAction.values.map((act) {
             return DropdownMenuItem(
               value: act,
-              child: Text(act.sqlKeyword),
+              child: Text(act.sqlKeyword, style: TextStyle(color: theme.colorScheme.onSurface)),
             );
           }).toList(),
           onChanged: (val) {

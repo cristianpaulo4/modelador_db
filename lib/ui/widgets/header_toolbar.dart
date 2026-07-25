@@ -100,6 +100,8 @@ class HeaderToolbar extends ConsumerWidget {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<SqlDialect>(
                         value: canvasState.activeDialect,
+                        dropdownColor: Theme.of(context).colorScheme.surface,
+                        style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
                         isDense: true,
                         onChanged: (SqlDialect? newDialect) {
@@ -117,9 +119,10 @@ class HeaderToolbar extends ConsumerWidget {
                                 const SizedBox(width: 8),
                                 Text(
                                   d.displayName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ],
